@@ -61,11 +61,11 @@ export default function Home() {
               <PhoneMockupCSS />
             </div>
             <div className="flex flex-col items-center gap-4 w-full">
-              <a href="/quiz" className="group w-full max-w-[480px] bg-[var(--gold)] text-white heading-font text-lg py-5 px-8 rounded-full shadow-xl hover:scale-105 hover:shadow-2xl hover:gold-glow active:scale-95 transition-all duration-200 flex items-center justify-center gap-3">
+              <a href="/quiz" className="group w-full max-w-[480px] bg-[var(--gold)] text-white heading-font text-lg py-5 px-8 rounded-full shadow-xl hover:scale-105 hover:shadow-2xl hover:gold-glow active:scale-95 transition-transform duration-200 flex items-center justify-center gap-3 group-hover:gap-5">
                 <span>Criar Minha Música</span>
-                <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform duration-200" />
+                <ArrowRight className="w-6 h-6 transition-transform duration-200 group-hover:translate-x-1" />
               </a>
-              <div className="text-[var(--teal)] text-[13px] opacity-60 tracking-tight text-center">
+              <div className="text-[var(--teal)] text-base font-medium tracking-tight text-center">
                 R$ 47 • Leva menos de 3 minutos • Entrega em 24h • Garantia de 7 dias
               </div>
             </div>
@@ -362,11 +362,11 @@ export default function Home() {
               Não dê mais um presente que vai pro fundo da gaveta. Responde o quiz. A gente faz o resto.
             </p>
             <div className="flex flex-col items-center gap-4 w-full mt-4">
-              <a href="/quiz" className="group flex items-center justify-center gap-3 w-full sm:w-auto min-w-[320px] max-w-[480px] bg-[var(--gold)] text-white heading-font text-lg py-5 px-8 rounded-full shadow-2xl hover:scale-105 hover:gold-glow active:scale-95 transition-all duration-200">
+              <a href="/quiz" className="group flex items-center justify-center gap-3 w-full sm:w-auto min-w-[320px] max-w-[480px] bg-[var(--gold)] text-white heading-font text-lg py-5 px-8 rounded-full shadow-2xl hover:scale-105 hover:gold-glow active:scale-95 transition-transform duration-200 group-hover:gap-5">
                 <span>🎵 Criar Minha Música</span>
-                <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform duration-200" />
+                <ArrowRight className="w-6 h-6 transition-transform duration-200 group-hover:translate-x-1" />
               </a>
-              <div className="mt-3 text-[13px] opacity-90 tracking-tight text-center">
+              <div className="mt-3 text-base font-medium tracking-tight text-center">
                 R$ 47 • Leva menos de 3 minutos • Recebe em 24h • Garantia de 7 dias
               </div>
             </div>
