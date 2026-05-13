@@ -61,14 +61,12 @@ export default function Home() {
               <PhoneMockupCSS />
             </div>
             <div className="flex flex-col items-center gap-4 w-full">
-              <a href="/quiz" className="group w-full bg-[var(--gold)] text-white heading-font text-lg py-5 rounded-full shadow-xl hover:translate-x-1 transition-all flex items-center justify-center gap-4">
-                <span>🎵 Criar Minha Música Personalizada</span>
-                <ArrowRight className="w-6 h-6" />
+              <a href="/quiz" className="group w-full max-w-[480px] bg-[var(--gold)] text-white heading-font text-lg py-5 px-8 rounded-full shadow-xl hover:scale-105 hover:shadow-2xl hover:gold-glow active:scale-95 transition-all duration-200 flex items-center justify-center gap-3">
+                <span>Criar Minha Música</span>
+                <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform duration-200" />
               </a>
-              <div className="mt-3 w-full max-w-[420px] mx-auto bg-white/80 backdrop-blur-md border border-[var(--teal)]/10 text-[var(--teal)] px-4 py-3 rounded-2xl sm:rounded-full font-medium shadow-sm flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-3">
-                <span className="font-bold text-base sm:text-lg">R$ 47</span>
-                <span className="text-[var(--teal)]/30 hidden sm:block">|</span>
-                <span className="text-[13px] sm:text-base opacity-80 tracking-tight text-center">Leva menos de 3 minutos • Entrega em 24h</span>
+              <div className="text-[var(--teal)] text-[13px] opacity-60 tracking-tight text-center">
+                R$ 47 • Leva menos de 3 minutos • Entrega em 24h • Garantia de 7 dias
               </div>
             </div>
           </div>
@@ -364,14 +362,12 @@ export default function Home() {
               Não dê mais um presente que vai pro fundo da gaveta. Responde o quiz. A gente faz o resto.
             </p>
             <div className="flex flex-col items-center gap-4 w-full mt-4">
-              <a href="/quiz" className="flex items-center justify-center gap-4 w-full sm:w-auto min-w-[320px] bg-[var(--gold)] text-white heading-font text-lg py-5 rounded-full shadow-2xl hover:scale-105 active:scale-95 transition-all gold-glow">
-                <span>🎵 Criar Minha Música Personalizada</span>
-                <ArrowRight className="w-6 h-6" />
+              <a href="/quiz" className="group flex items-center justify-center gap-3 w-full sm:w-auto min-w-[320px] max-w-[480px] bg-[var(--gold)] text-white heading-font text-lg py-5 px-8 rounded-full shadow-2xl hover:scale-105 hover:gold-glow active:scale-95 transition-all duration-200">
+                <span>🎵 Criar Minha Música</span>
+                <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform duration-200" />
               </a>
-              <div className="mt-3 w-full max-w-[480px] mx-auto bg-white/10 backdrop-blur-md border border-white/20 text-white px-4 py-3 rounded-2xl sm:rounded-full font-medium shadow-lg flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-3">
-                <span className="font-bold text-base sm:text-lg">R$ 47</span>
-                <span className="text-white/30 hidden sm:block">|</span>
-                <span className="text-[13px] sm:text-base opacity-90 tracking-tight text-center">Leva menos de 3 minutos • Recebe em 24h • Se não gostar, devolvemos</span>
+              <div className="mt-3 text-[13px] opacity-90 tracking-tight text-center">
+                R$ 47 • Leva menos de 3 minutos • Recebe em 24h • Garantia de 7 dias
               </div>
             </div>
           </div>
