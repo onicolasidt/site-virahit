@@ -1,8 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Footer } from './components/Footer';
+import { Footer } from '../components/Footer';
 import { ArrowLeft } from 'lucide-react';
-import { Header } from './components/Header';
+import { Header } from '../components/Header';
 
 export default function Privacidade() {
   return (
