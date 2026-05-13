@@ -32,13 +32,11 @@ export default function Home() {
       });
   }, []);
 
-  const ocasiao = searchParams.get('ocasiao');
-
   return (
     <div className="v2-theme antialiased overflow-x-hidden selection:bg-[var(--gold)] selection:text-white" data-mode="connect">
       <Header />
       <main>
-        {/* ===== SEÇÃO 2 — HERO ===== */}
+        {/* ===== SEÇÃO 1 — HERO ===== */}
         <section className="relative px-6 pt-32 pb-24 overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 abstract-pattern -z-10 rotate-12 translate-x-1/2"></div>
           <div className="max-w-4xl mx-auto flex flex-col gap-10">
@@ -48,16 +46,14 @@ export default function Home() {
               <div className="h-[1px] flex-grow bg-[var(--teal)]/20"></div>
             </div>
             <div className="relative">
-              <h1 className="text-[clamp(2.8rem,11vw,4.5rem)] sm:text-6xl md:text-7xl lg:text-8xl leading-[1.1] text-[var(--teal)] mb-8 tracking-tight">
+              <h1 className="text-[clamp(2.5rem,11vw,4rem)] sm:text-6xl md:text-7xl lg:text-8xl leading-[1.1] text-[var(--teal)] mb-8 tracking-tight">
                 <span className="block">SUA</span>
                 <span className="block">HISTÓRIA</span>
                 <span className="text-[var(--gold)] block mt-2 italic">VIRA MÚSICA</span>
               </h1>
               <div className="ml-auto w-4/5 border-l-2 border-[var(--gold)] pl-6 py-2 mb-10">
-                <p className="text-[var(--teal-light)] text-[17px] leading-relaxed" style={{ opacity: 0.8 }}>
-                  Você responde 4 perguntinhas sobre a história de vocês.
-                  Em 24h, chega uma música com o nome dela — do jeito que vocês viveram isso.
-                  Por R$47, você dá um presente que nenhuma loja do mundo tem igual.
+                <p className="text-[var(--teal-light)] text-lg sm:text-xl md:text-2xl font-light leading-relaxed italic">
+                  Você responde 4 perguntinhas sobre a história de vocês. Em 24h, chega uma música com o nome dela — do jeito que vocês viveram isso. Por R$47, você dá um presente que nenhuma loja do mundo tem igual.
                 </p>
               </div>
             </div>
@@ -65,15 +61,14 @@ export default function Home() {
               <PhoneMockupCSS />
             </div>
             <div className="flex flex-col items-center gap-4 w-full">
-              <a href="/quiz" className="group w-full bg-[var(--gold)] text-white heading-font text-[16px] py-[14px] rounded-full shadow-xl hover:translate-x-1 transition-all flex items-center justify-center gap-4">
+              <a href="/quiz" className="group w-full bg-[var(--gold)] text-white heading-font text-lg py-5 rounded-full shadow-xl hover:translate-x-1 transition-all flex items-center justify-center gap-4">
                 <span>🎵 Criar Minha Música Personalizada</span>
                 <ArrowRight className="w-6 h-6" />
               </a>
-              <div className="mt-3 text-[var(--teal)] text-[13px] tracking-tight text-center" style={{ opacity: 0.6 }}>
-                Leva menos de 3 minutos • Recebe em até 24h • Garantia de 7 dias
-              </div>
-              <div className="text-[var(--teal)] text-sm font-bold">
-                ★★★★★ +1.200 famílias emocionadas
+              <div className="mt-3 w-full max-w-[420px] mx-auto bg-white/80 backdrop-blur-md border border-[var(--teal)]/10 text-[var(--teal)] px-4 py-3 rounded-2xl sm:rounded-full font-medium shadow-sm flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-3">
+                <span className="font-bold text-base sm:text-lg">R$ 47</span>
+                <span className="text-[var(--teal)]/30 hidden sm:block">|</span>
+                <span className="text-[13px] sm:text-base opacity-80 tracking-tight text-center">Leva menos de 3 minutos • Entrega em 24h</span>
               </div>
             </div>
           </div>
@@ -83,33 +78,35 @@ export default function Home() {
           <div className="ornament-line"></div>
         </div>
 
-        {/* ===== SEÇÃO 3 — PARA QUAL MOMENTO ESPECIAL? ===== */}
+        {/* ===== SEÇÃO 2 — PARA QUAL MOMENTO ESPECIAL? ===== */}
         <section className="px-6 py-20 relative">
           <div className="max-w-4xl mx-auto">
-            <div className="mb-12 text-center">
+            <div className="mb-16">
               <span className="text-[var(--gold)] font-bold uppercase tracking-[0.4em] text-[10px] block mb-4">Para Qual Momento Especial?</span>
-              <h2 className="text-3xl sm:text-4xl text-[var(--teal)]">Clique e já começamos pelo que importa pra você</h2>
+              <h2 className="text-3xl sm:text-4xl md:text-5xl text-[var(--teal)] max-w-md">Clique e já começamos pelo que importa pra você</h2>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              {[
-                { emoji: '❤️', label: 'Amor', slug: 'amor' },
-                { emoji: '💍', label: 'Casamento', slug: 'casamento' },
-                { emoji: '🎂', label: 'Aniversário', slug: 'aniversario' },
-                { emoji: '👩', label: 'Mãe', slug: 'mae' },
-                { emoji: '👨', label: 'Pai', slug: 'pai' },
-                { emoji: '👶', label: 'Filho/a', slug: 'filho' },
-                { emoji: '🤝', label: 'Amizade', slug: 'amizade' },
-                { emoji: '🎓', label: 'Formatura', slug: 'formatura' },
-              ].map(({ emoji, label, slug }) => (
-                <a
-                  key={slug}
-                  href={`/quiz?ocasiao=${slug}`}
-                  className="bg-white/50 border border-[var(--teal)]/10 rounded-2xl p-5 text-center hover:shadow-md hover:border-[var(--gold)]/30 transition-all cursor-pointer"
-                >
-                  <div className="text-3xl mb-2">{emoji}</div>
-                  <div className="text-[var(--teal)] font-bold text-sm">{label}</div>
-                </a>
-              ))}
+            <div className="flex flex-col gap-12">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
+                {[
+                  { emoji: '❤️', label: 'Amor', slug: 'amor' },
+                  { emoji: '💍', label: 'Casamento', slug: 'casamento' },
+                  { emoji: '🎂', label: 'Aniversário', slug: 'aniversario' },
+                  { emoji: '👩', label: 'Mãe', slug: 'mae' },
+                  { emoji: '👨', label: 'Pai', slug: 'pai' },
+                  { emoji: '👶', label: 'Filho/a', slug: 'filho' },
+                  { emoji: '🤝', label: 'Amizade', slug: 'amizade' },
+                  { emoji: '🎓', label: 'Formatura', slug: 'formatura' },
+                ].map(({ emoji, label, slug }) => (
+                  <a
+                    key={slug}
+                    href={`/quiz?ocasiao=${slug}`}
+                    className="bg-white/40 border border-[var(--teal)]/5 rounded-2xl p-8 text-center hover:shadow-md hover:border-[var(--gold)]/30 transition-all cursor-pointer flex flex-col items-center gap-3"
+                  >
+                    <div className="text-4xl">{emoji}</div>
+                    <div className="text-[var(--teal)] font-bold text-sm heading-font uppercase tracking-wide">{label}</div>
+                  </a>
+                ))}
+              </div>
             </div>
           </div>
         </section>
@@ -118,7 +115,7 @@ export default function Home() {
           <div className="ornament-line"></div>
         </div>
 
-        {/* ===== SEÇÃO 4 — O DESAFIO ===== */}
+        {/* ===== SEÇÃO 3 — O DESAFIO ===== */}
         <section className="px-6 py-20 relative">
           <div className="max-w-4xl mx-auto">
             <div className="mb-16">
@@ -129,23 +126,23 @@ export default function Home() {
               <div className="w-full md:w-2/3 lg:w-1/2 bg-white/40 p-10 border border-[var(--teal)]/5 asymmetric-border editorial-shadow self-start">
                 <MicOff className="w-9 h-9 text-[var(--gold)] mb-6" />
                 <h3 className="text-2xl text-[var(--teal)] mb-4">Não sabe o que dar de presente?</h3>
-                <p className="text-[var(--teal-light)] leading-relaxed">Flores murcham. Chocolate acaba. Roupa ela já tem.<br />Você quer algo que ela guarde pra sempre — e não sabe como chegar lá.</p>
+                <p className="text-[var(--teal-light)] leading-relaxed">Flores murcham. Chocolate acaba. Roupa ela já tem. Você quer algo que ela guarde pra sempre — e não sabe como chegar lá.</p>
               </div>
               <div className="w-full md:w-2/3 lg:w-1/2 bg-white/40 p-10 border border-[var(--teal)]/5 asymmetric-border editorial-shadow self-end">
                 <CreditCard className="w-9 h-9 text-[var(--gold)] mb-6" />
                 <h3 className="text-2xl text-[var(--teal)] mb-4">Não quer gastar uma fortuna?</h3>
-                <p className="text-[var(--teal-light)] leading-relaxed">Presente de verdade no shopping custa caro — e você ainda enfrenta trânsito, fila e estacionamento.<br />Aqui, por R$47, você entrega emoção pura. E sobra dinheiro pro jantar.</p>
+                <p className="text-[var(--teal-light)] leading-relaxed">Presente de verdade no shopping custa caro — e você ainda enfrenta trânsito, fila e estacionamento. Aqui, por R$47, você entrega emoção pura. E sobra dinheiro pro jantar.</p>
               </div>
               <div className="w-full md:w-2/3 lg:w-1/2 bg-white/40 p-10 border border-[var(--teal)]/5 asymmetric-border editorial-shadow self-start">
                 <Clock className="w-9 h-9 text-[var(--gold)] mb-6" />
                 <h3 className="text-2xl text-[var(--teal)] mb-4">Tá sem tempo e sem ideia?</h3>
-                <p className="text-[var(--teal-light)] leading-relaxed">Você não precisa escrever nada elaborado.<br />Responde um quiz rápido de 4 perguntas sobre ela.<br />A gente transforma em música. Pronto em 24h.</p>
+                <p className="text-[var(--teal-light)] leading-relaxed">Você não precisa escrever nada elaborado. Responde um quiz rápido de 4 perguntas sobre ela. A gente transforma em música. Pronto em 24h.</p>
               </div>
             </div>
           </div>
         </section>
 
-        {/* ===== SEÇÃO 5 — COMO FUNCIONA ===== */}
+        {/* ===== SEÇÃO 4 — COMO FUNCIONA ===== */}
         <section id="como-funciona" className="px-6 py-24 bg-[var(--teal)] text-[var(--cream)]">
           <div className="max-w-4xl mx-auto">
             <div className="mb-20 text-center">
@@ -158,28 +155,32 @@ export default function Home() {
                 <div className="heading-font text-6xl opacity-10 leading-none">01</div>
                 <div className="flex-grow pt-4">
                   <h3 className="text-3xl mb-6 text-[var(--gold)]">Conta a História de Vocês</h3>
-                  <p className="text-lg opacity-80 leading-relaxed max-w-xl font-light">Responde um quiz rapidinho — leva menos de 5 minutos. Nome, ocasião especial, estilo musical que ela ama e um momento que só vocês dois sabem.<br /><br />Sem escrever redação. Sem complicar. A gente pergunta, você responde.</p>
+                  <p className="text-lg opacity-80 leading-relaxed max-w-xl font-light">Responde um quiz rapidinho — leva menos de 5 minutos. Nome, ocasião especial, estilo musical que ela ama e um momento que só vocês dois sabem. Sem escrever redação. Sem complicar. A gente pergunta, você responde.</p>
                 </div>
               </div>
               <div className="flex flex-col md:flex-row-reverse gap-10 items-start">
                 <div className="heading-font text-6xl opacity-10 leading-none">02</div>
                 <div className="flex-grow pt-4">
                   <h3 className="text-3xl mb-6 text-[var(--gold)]">A Música Nasce</h3>
-                  <p className="text-lg opacity-80 leading-relaxed max-w-xl font-light">Com tudo que você contou, a música é criada do zero —<br />letra, melodia e arranjo no estilo que você escolheu:<br />Sertanejo, Gospel, Pagode, Forró ou MPB.<br /><br />Essa canção não existia antes.<br />Agora ela só existe por causa de vocês.</p>
+                  <p className="text-lg opacity-80 leading-relaxed max-w-xl font-light">Com tudo que você contou, a música é criada do zero — letra, melodia e arranjo no estilo que você escolheu: Sertanejo, Gospel, Pagode, Forró ou MPB. Essa canção não existia antes. Agora ela só existe por causa de vocês.</p>
                 </div>
               </div>
               <div className="flex flex-col md:flex-row gap-10 items-start">
                 <div className="heading-font text-6xl opacity-10 leading-none">03</div>
                 <div className="flex-grow pt-4">
                   <h3 className="text-3xl mb-6 text-[var(--gold)]">Você Surpreende Quem Ama</h3>
-                  <p className="text-lg opacity-80 leading-relaxed max-w-xl font-light">Em até 24h, a música chega pra você.<br />Você manda pelo WhatsApp, coloca pra tocar na hora do jantar, ou aparece de surpresa com ela tocando.<br /><br />O que acontece depois — você vai querer ter filmado.</p>
+                  <p className="text-lg opacity-80 leading-relaxed max-w-xl font-light">Em até 24h, a música chega pra você. Você manda pelo WhatsApp, coloca pra tocar na hora do jantar, ou aparece de surpresa com ela tocando. O que acontece depois — você vai querer ter filmado.</p>
+                  <div className="mt-10 inline-flex items-center gap-3 py-2 px-4 border border-[var(--gold)]/30 rounded-sm">
+                    <BadgeCheck className="w-6 h-6 text-[var(--gold)]" />
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--gold)]">Qualidade de estudio</span>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         </section>
 
-        {/* ===== SEÇÃO 6 — POR QUE A VIRAHIT É DIFERENTE ===== */}
+        {/* ===== SEÇÃO 5 — POR QUE A VIRAHIT É DIFERENTE ===== */}
         <section id="vantagens" className="px-6 py-24 bg-[#F4EEDC] relative">
           <div className="max-w-5xl mx-auto">
             <div className="flex flex-col items-center mb-20">
@@ -194,17 +195,17 @@ export default function Home() {
                 <h3 className="text-3xl text-[var(--teal)] mb-6">Feita pra chorar (de emoção)</h3>
                 <p className="text-[var(--teal-light)] text-xl leading-relaxed mb-10 italic">"Não é playlist. Não é cover. É uma música que só existe por causa da história de vocês. Cada palavra, cada nota."</p>
                 <ul className="space-y-6">
-                  <li className="flex items-start gap-4 text-[var(--teal)] leading-relaxed">
-                    <span className="text-[var(--gold)] font-bold">✦</span>
-                    <span>Essa música só existe porque VOCÊ pediu.<br />Não tem igual em nenhuma loja, em nenhum site, em lugar nenhum do mundo.</span>
+                  <li className="flex items-start gap-4 text-[var(--teal)]">
+                    <span className="text-[var(--gold)]">✦</span>
+                    <span className="font-bold italic">Essa música só existe porque VOCÊ pediu. Não tem igual em nenhuma loja, em nenhum site, em lugar nenhum do mundo.</span>
                   </li>
-                  <li className="flex items-start gap-4 text-[var(--teal)] leading-relaxed">
-                    <span className="text-[var(--gold)] font-bold">✦</span>
-                    <span>Ela não vai guardar numa gaveta.<br />Vai ouvir de novo. E de novo.<br />E toda vez que ouvir, vai lembrar de você.</span>
+                  <li className="flex items-start gap-4 text-[var(--teal)]">
+                    <span className="text-[var(--gold)]">✦</span>
+                    <span className="font-bold italic">Ela não vai guardar numa gaveta. Vai ouvir de novo. E de novo. E toda vez que ouvir, vai lembrar de você.</span>
                   </li>
-                  <li className="flex items-start gap-4 text-[var(--teal)] leading-relaxed">
-                    <span className="text-[var(--gold)] font-bold">✦</span>
-                    <span>Você não precisa saber escrever nem ter ideia nenhuma.<br />Responde o quiz, a gente faz o resto. Em 24h.</span>
+                  <li className="flex items-start gap-4 text-[var(--teal)]">
+                    <span className="text-[var(--gold)]">✦</span>
+                    <span className="font-bold italic">Você não precisa saber escrever nem ter ideia nenhuma. Responde o quiz, a gente faz o resto. Em 24h.</span>
                   </li>
                 </ul>
               </div>
@@ -226,7 +227,7 @@ export default function Home() {
           </div>
         </section>
 
-        {/* ===== SEÇÃO 7 — TABELA COMPARATIVA ===== */}
+        {/* ===== SEÇÃO 6 — TABELA COMPARATIVA ===== */}
         <section className="px-6 py-24 max-w-4xl mx-auto">
           <h2 className="text-3xl text-center mb-16 text-[var(--teal)]">Compare e Veja a Diferença</h2>
           <div className="overflow-x-auto">
@@ -241,7 +242,7 @@ export default function Home() {
               <tbody className="text-[var(--teal)]">
                 <tr className="border-b border-[var(--teal)]/5">
                   <td className="py-8 px-4 font-bold italic">Custo</td>
-                  <td className="py-8 px-4 opacity-40">R$ 150–300</td>
+                  <td className="py-8 px-4 opacity-40">R$ 150-300</td>
                   <td className="py-8 px-4 font-black text-[var(--gold)]">R$ 47</td>
                 </tr>
                 <tr className="border-b border-[var(--teal)]/5">
@@ -269,14 +270,14 @@ export default function Home() {
           </div>
         </section>
 
-        {/* ===== SEÇÃO 8 — DEPOIMENTOS ===== */}
+        {/* ===== SEÇÃO 7 — DEPOIMENTOS ===== */}
         <section id="depoimentos" className="px-6 py-24 relative overflow-hidden bg-[var(--teal)]/5">
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-20">
               <span className="text-[var(--gold)] font-bold uppercase tracking-[0.4em] text-[10px] mb-4">Comunidade</span>
               <h2 className="text-3xl text-[var(--teal)] mb-6">O Que Acontece Quando Alguém Ouve "Sua" Música</h2>
-              <p className="text-[var(--teal-light)] italic mb-4">Não foi a gente que disse que funciona.<br />Foram eles — depois de apertar o play pela primeira vez.</p>
-              <p className="text-[var(--teal)] font-bold">1.200+ histórias transformadas em música.</p>
+              <p className="text-[var(--teal-light)] italic">Não foi a gente que disse que funciona. Foram eles — depois de apertar o play pela primeira vez.</p>
+              <p className="text-[var(--teal-light)] italic">1.200+ histórias transformadas em música.</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 items-stretch">
               <WhatsAppTestimonial 
@@ -319,105 +320,58 @@ export default function Home() {
           </div>
         </section>
 
-        {/* ===== SEÇÃO 9 — PLAYERS DE ÁUDIO ===== */}
-        {/* NOTA: Oculto até ter áudios reais. Descomentar quando os arquivos existirem. */}
-        {/*
+        {/* ===== SEÇÃO 8 — GARANTIA ===== */}
         <section className="px-6 py-20">
-          <div className="max-w-4xl mx-auto">
-            <div className="text-center mb-16">
-              <span className="text-[var(--gold)] font-bold uppercase tracking-[0.4em] text-[10px] block mb-4">Ouça Exemplos Reais</span>
-              <h2 className="text-3xl text-[var(--teal)] mb-4">Como Uma Música Dessas Soa</h2>
-              <p className="text-[var(--teal-light)] italic">Essas músicas foram feitas pra outras pessoas.<br />A música da sua pessoa vai ser feita com a história de vocês.</p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {[
-                { genre: 'Sertanejo', dedication: 'Para Ana — Aniversário', time: '1:23 / 3:45' },
-                { genre: 'Gospel', dedication: 'Para Vovó Rosa — Aniversário de 80 anos', time: '0:52 / 4:01' },
-                { genre: 'Pagode', dedication: 'Para Roberto — Casamento', time: '1:47 / 3:12' },
-              ].map((t) => (
-                <div key={t.genre} className="bg-white/50 border border-[var(--teal)]/10 rounded-2xl p-6">
-                  <div className="text-2xl mb-2">🎵</div>
-                  <div className="font-bold text-[var(--teal)]">{t.genre}</div>
-                  <div className="text-sm text-[var(--teal-light)] mb-4">{t.dedication}</div>
-                  <div className="text-xs text-[var(--teal)]/60 mb-2">{t.time}</div>
-                  <button className="w-10 h-10 bg-[var(--gold)] rounded-full flex items-center justify-center">
-                    <span className="text-white text-lg">▶</span>
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-        */}
-
-        {/* ===== SEÇÃO 10 — GARANTIA ===== */}
-        <section className="px-6 py-20">
-          <div className="max-w-4xl mx-auto rounded-2xl border-2 p-12 text-center relative" style={{ borderColor: 'rgba(44,93,99,0.2)', backgroundColor: 'rgba(44,93,99,0.05)' }}>
+          <div className="max-w-4xl mx-auto border-2 border-[var(--gold)] p-12 text-center relative">
             <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-[var(--cream)] px-6">
-              <BadgeCheck className="w-8 h-8 text-[var(--gold)]" />
+              <BadgeCheck className="w-12 h-12 text-[var(--gold)]" />
             </div>
-            <h2 className="text-3xl text-[var(--teal)] mb-6">Se Ela Ouvir e Não Sentir Nada, Você Não Paga</h2>
-            <p className="text-[var(--teal-light)] text-lg mb-8 max-w-lg mx-auto leading-relaxed">
-              Você tem 7 dias depois de receber a música.<br />
-              Se não rolar aquele arrepio — sabe aquele? —<br />
-              é só falar e a gente devolve tudo.<br />
-              Sem burocracia. Sem explicação. Sem pergunta.<br /><br />
-              A gente confia tanto nessa música que oferece isso sem medo nenhum.<br />
-              Só que isso nunca aconteceu por aqui.
+            <h2 className="text-3xl text-[var(--teal)] mb-2">Se Ela Ouvir e Não Sentir Nada, Você Não Paga</h2>
+            <p className="text-xl text-[var(--gold)] italic mb-6">Simples assim.</p>
+            <p className="text-[var(--teal-light)] text-lg mb-8 max-w-lg mx-auto font-light leading-relaxed">
+              Você tem 7 dias depois de receber a música. Se não rolar aquele arrepio — sabe aquele? — é só falar e a gente devolve tudo. Sem burocracia. Sem explicação. Sem pergunta. A gente confia tanto nessa música que oferece isso sem medo nenhum. Só que isso nunca aconteceu por aqui.
             </p>
           </div>
         </section>
 
-        {/* ===== SEÇÃO 11 — IMAGINE ESSA CENA (NOVA) ===== */}
-        <section className="px-6 py-20 text-center" style={{ backgroundColor: 'var(--teal)' }}>
-          <div className="max-w-4xl mx-auto">
-            <h2 className="text-[clamp(1.75rem,5vw,2.25rem)] font-black uppercase tracking-tight mb-10" style={{ color: 'var(--cream)' }}>
-              Imagine Essa Cena
+        {/* ===== SEÇÃO 9 — IMAGINE ESSA CENA (NOVA) ===== */}
+        <section className="px-6 py-24 bg-[var(--teal)] text-[var(--cream)] relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-full abstract-pattern opacity-10"></div>
+          <div className="max-w-4xl mx-auto text-center relative z-10">
+            <h2 className="text-4xl sm:text-5xl md:text-6xl leading-tight mb-8">
+              Imagine <span className="text-[var(--gold)] italic">Essa Cena</span>
             </h2>
-            <p className="text-[var(--cream)] text-[17px] leading-relaxed" style={{ opacity: 0.9 }}>
-              Você manda a música pra ela às 7 da manhã.
-              <br /><br />
-              Ela abre enquanto está no carro, a caminho do trabalho.
-              Ouve o primeiro verso — e é o nome dela.
-              A história de vocês. Aquele momento que só vocês dois sabem.
-              <br /><br />
-              Ela para tudo.
-              <br />
-              Ouve de novo.
-              <br />
-              Manda pro grupo da família.
-              <br />
-              Liga pra você chorando.
-              <br /><br />
-              Isso não é exagero.
-              <br />
-              É o que acontece quando um presente fala diretamente
-              do coração de quem dá pra quem recebe.
-              <br /><br />
-              A música que você está prestes a criar
-              só vai existir por causa dessa história.
-              Ninguém mais no mundo vai ter essa música.
-              <br /><br />
-              Você só precisa responder algumas perguntas sobre ela.
-              A gente cuida do resto.
+            <p className="text-lg sm:text-xl font-light opacity-80 max-w-xl mx-auto leading-relaxed">
+              Você manda a música pra ela às 7 da manhã. Ela abre enquanto está no carro, a caminho do trabalho. Ouve o primeiro verso — e é o nome dela. A história de vocês.
+            </p>
+            <p className="text-lg sm:text-xl font-light opacity-80 max-w-xl mx-auto leading-relaxed mt-6">
+              Ela para tudo. Ouve de novo. Manda pro grupo da família. Liga pra você chorando.
+            </p>
+            <p className="text-lg sm:text-xl font-light opacity-80 max-w-xl mx-auto leading-relaxed mt-6">
+              Isso não é exagero. É o que acontece quando um presente fala diretamente do coração de quem dá pra quem recebe. Você só precisa responder algumas perguntas sobre ela. A gente cuida do resto.
             </p>
           </div>
         </section>
 
-        {/* ===== SEÇÃO 12 — CTA FINAL ===== */}
-        <section className="px-6 py-32 text-center relative overflow-hidden">
+        {/* ===== SEÇÃO 10 — CTA FINAL ===== */}
+        <section className="px-6 py-32 text-center bg-[var(--teal)] text-[var(--cream)] relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-full abstract-pattern opacity-10"></div>
           <div className="max-w-4xl mx-auto flex flex-col items-center gap-12 relative z-10">
-            <h2 className="text-4xl sm:text-5xl md:text-6xl leading-tight text-[var(--teal)]">
+            <h2 className="text-4xl sm:text-5xl md:text-6xl leading-tight">
               Daqui 24h, Alguém Vai Chorar <span className="text-[var(--gold)] italic">Por Sua Causa</span>
             </h2>
+            <p className="text-lg sm:text-xl font-light opacity-70 max-w-xl">
+              Não dê mais um presente que vai pro fundo da gaveta. Responde o quiz. A gente faz o resto.
+            </p>
             <div className="flex flex-col items-center gap-4 w-full mt-4">
-              <a href="/quiz" className="flex items-center justify-center gap-4 w-full sm:w-auto max-w-[480px] bg-[var(--gold)] text-white heading-font text-[16px] py-[14px] rounded-full shadow-2xl hover:scale-105 active:scale-95 transition-all gold-glow">
+              <a href="/quiz" className="flex items-center justify-center gap-4 w-full sm:w-auto min-w-[320px] bg-[var(--gold)] text-white heading-font text-lg py-5 rounded-full shadow-2xl hover:scale-105 active:scale-95 transition-all gold-glow">
                 <span>🎵 Criar Minha Música Personalizada</span>
                 <ArrowRight className="w-6 h-6" />
               </a>
-              <div className="mt-3 text-[var(--teal)] text-[13px] tracking-tight text-center" style={{ opacity: 0.6 }}>
-                Leva menos de 3 minutos • Recebe em até 24h • R$47 • Garantia de 7 dias
+              <div className="mt-3 w-full max-w-[480px] mx-auto bg-white/10 backdrop-blur-md border border-white/20 text-white px-4 py-3 rounded-2xl sm:rounded-full font-medium shadow-lg flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-3">
+                <span className="font-bold text-base sm:text-lg">R$ 47</span>
+                <span className="text-white/30 hidden sm:block">|</span>
+                <span className="text-[13px] sm:text-base opacity-90 tracking-tight text-center">Leva menos de 3 minutos • Recebe em 24h • Se não gostar, devolvemos</span>
               </div>
             </div>
           </div>
