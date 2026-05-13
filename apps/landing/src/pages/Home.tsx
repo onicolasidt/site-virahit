@@ -61,7 +61,7 @@ export default function Home() {
               <PhoneMockupCSS />
             </div>
             <div className="flex flex-col items-center gap-4 w-full">
-              <a href={whatsappLink} className="group w-full bg-[var(--gold)] text-white heading-font text-lg py-5 rounded-full shadow-xl hover:translate-x-1 transition-all flex items-center justify-center gap-4">
+              <a href="/quiz" className="group w-full bg-[var(--gold)] text-white heading-font text-lg py-5 rounded-full shadow-xl hover:translate-x-1 transition-all flex items-center justify-center gap-4">
                 <span className="">Criar Minha Música</span>
                 <ArrowRight className="w-6 h-6" />
               </a>
