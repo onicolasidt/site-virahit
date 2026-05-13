@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Environment files
+.env
+.env.local
+.env.production
+
+# OS/Editor
+.DS_Store
+*.log
+*.tsbuildinfo
+
+# PM2 logs
+pm2*.log

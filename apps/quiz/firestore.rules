@@ -1,0 +1,15 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Pedidos — leitura e escrita livres (validacao no servidor)
+    match /pedidos/{pedidoId} {
+      allow read: if true;
+      allow write: if true;
+    }
+    // Payment Events — observability (somente escrita do servidor, leitura livre)
+    match /payment_events/{eventId} {
+      allow read: if true;
+      allow write: if true;
+    }
+  }
+}

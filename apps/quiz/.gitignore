@@ -1,0 +1,17 @@
+node_modules/
+build/
+dist/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
+firebase-applet-config.json
+
+# Arquivos de runtime (gerados automaticamente)
+monitor-*.json
+watchdog-*.json
+
+# Documentação de projetos antigos
+metadata.json
+firebase-blueprint.json
