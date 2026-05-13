@@ -522,7 +522,27 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
           // (ConversionsScreen salvou tudo no addDoc — nome, estilo, voz, gênero, etc.)
           // Isso evita o bug do "nome antigo" quando virahit_quiz_draft foi deletado
           if (pedidoSalvo) {
-            setSession(pedidoSalvo as SessionData);
+            // Mapear nomes do Firestore (salvos pelo Quiz) para nomes do SessionData
+            const p = pedidoSalvo as any;
+            const mapped: SessionData = {
+              nome: p.nome || '',
+              generoDestinatario: p.genero === 'F' ? 'F' : 'M',
+              estiloMusical: p.estilo || '',
+              vozMusical: p.voz || '',
+              compradorNome: p.compradorNome || '',
+              compradorWhatsApp: p.compradorWhatsApp || '',
+              idPedido: p.idPedido || storedIdPedido,
+              pixQRCodeUrl: p.pixQRCodeUrl || '',
+              pixCopiaCola: p.pixCopiaCola || '',
+              dataEntregaGarantida: p.dataEntregaGarantida || '',
+              ...(p.campoA !== undefined && { campoA: p.campoA }),
+              ...(p.campoB !== undefined && { campoB: p.campoB }),
+              ...(p.campoC !== undefined && { campoC: p.campoC }),
+              ...(p.campoCOutro !== undefined && { campoCOutro: p.campoCOutro }),
+              ...(p.vinculo !== undefined && { vinculo: p.vinculo }),
+              ...(p.genero !== undefined && { genero: p.genero }),
+            };
+            setSession(mapped);
             return;
           }
         } catch { /* se falhar a busca, continua normalmente */ }
