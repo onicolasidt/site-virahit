@@ -35,29 +35,6 @@ async function emitPaymentEvent(pedidoId: string, etapa: string, opts?: { erro?:
   } catch { /* fire-and-forget — nunca bloqueia o fluxo principal */ }
 }
 
-// Helper: log genérico de erro frontend → servidor → Baserow
-async function logFrontendError(pagina: string, etapa: string, erro: Error | string, extra?: Record<string, any>) {
-  try {
-    const e = typeof erro === 'string' ? { code: '', message: erro, name: '', stack: '' } : erro;
-    await fetch('/api/log-erro', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        pagina,
-        etapa,
-        erro_tipo: (e as any)?.code || (e as any)?.name || 'UnknownError',
-        erro_mensagem: (e as any)?.message || String(erro),
-        erro_stack: (e as any)?.stack || '',
-        user_agent: navigator.userAgent,
-        pedido_id: extra?.pedidoId || '',
-        comprador_nome: extra?.compradorNome || '',
-        comprador_whatsapp: extra?.compradorWhatsApp || '',
-        comprador_email: extra?.compradorEmail || '',
-      }),
-    });
-  } catch { /* fire-and-forget */ }
-}
-
 type PaymentTab = 'pix' | 'card';
 type PixState = 'active' | 'expired';
 type PageState = 'checkout' | 'confirmed';
@@ -69,6 +46,7 @@ interface SessionData {
   vozMusical: string;
   compradorNome: string;
   compradorWhatsApp: string;
+  compradorEmail: string;
   idPedido: string;
   pixQRCodeUrl: string;
   pixCopiaCola: string;
@@ -81,6 +59,7 @@ const BANK_ERRORS = new Set([
   'incorrect_number', 'invalid_number', 'invalid_expiry_month', 'invalid_expiry_year',
   'invalid_cvc', 'incomplete_number', 'incomplete_expiry', 'incomplete_cvc',
   'processing_error', 'authentication_required',
+  'do_not_honor', 'restricted_card', 'pickup_card', 'card_not_supported', 'currency_not_supported', 'transaction_not_allowed',
 ]);
 
 function categorizeError(code?: string): 'banco' | '3ds_timeout' | 'infra' {
@@ -105,6 +84,12 @@ const STRIPE_ERROR_MESSAGES: Record<string, string> = {
   incomplete_cvc: 'Código de segurança (CVV) incompleto.',
   invalid_number: 'Número do cartão inválido.',
   authentication_required: 'Autenticação necessária.',
+  do_not_honor: 'Pagamento não autorizado pelo banco. Tente outro cartão ou use o PIX.',
+  restricted_card: 'Este cartão tem restrições. Tente outro cartão ou use o PIX.',
+  pickup_card: 'Cartão bloqueado pelo banco. Use outro cartão ou pague com PIX.',
+  card_not_supported: 'Este tipo de cartão não é aceito. Tente outro cartão ou use o PIX.',
+  currency_not_supported: 'Cartão não aceita pagamentos em BRL. Use outro cartão ou pague com PIX.',
+  transaction_not_allowed: 'Transação não permitida pelo banco. Tente outro cartão ou use o PIX.',
 };
 
 function humanizeStripeError(code?: string, message?: string): string {
@@ -220,7 +205,6 @@ function ExpressOnlyForm({ pedidoId, onPaymentConfirmed }: ExpressOnlyFormProps)
         erro: e?.message || 'confirmPayment crashed',
         meta: { type: 'express', errorType: 'infra' }
       });
-      logFrontendError('checkout', 'express_payment', e, { pedidoId });
     }
   };
 
@@ -336,7 +320,6 @@ function CardForm({ onSwitchToPix, onPaymentConfirmed, pedidoId }: CardFormProps
         erro: e?.message || 'confirmPayment crashed',
         meta: { type: 'card', errorType: 'infra' }
       });
-      logFrontendError('checkout', 'card_payment', e, { pedidoId });
       setCardLoading(false);
     }
   };
@@ -348,10 +331,6 @@ function CardForm({ onSwitchToPix, onPaymentConfirmed, pedidoId }: CardFormProps
 
   return (
     <form onSubmit={handleCardSubmit} className="flex flex-col gap-4">
-      <div className="flex flex-col items-center mb-1">
-        <span className="font-['Open_Sans'] font-extrabold text-[#128C7E] text-[24px]">R$ 1,00</span>
-        <span className="font-['Open_Sans'] text-[#4B5563] text-[13px] font-medium">ou em 2x de R$ 23,50 sem juros</span>
-      </div>
       <div className="rounded-xl overflow-hidden p-1 bg-white">
         {stripe ? (
           <div className="flex flex-col gap-3">
@@ -440,7 +419,7 @@ function CardForm({ onSwitchToPix, onPaymentConfirmed, pedidoId }: CardFormProps
 }
 
 import { salvarPedido, buscarPedido, db } from '../lib/firebase';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, getDoc } from 'firebase/firestore';
 
 function getWhatsAppUrl(session: SessionData) {
   const nomeFormatado = session.nome ? session.nome.charAt(0).toUpperCase() + session.nome.slice(1).toLowerCase() : 'a pessoa';
@@ -452,7 +431,7 @@ function getWhatsAppUrl(session: SessionData) {
 export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
   const [session, setSession] = useState<SessionData>({
     nome: '', generoDestinatario: 'M', estiloMusical: '', vozMusical: '',
-    compradorNome: '', compradorWhatsApp: '', idPedido: '',
+    compradorNome: '', compradorWhatsApp: '', compradorEmail: '', idPedido: '',
     pixQRCodeUrl: '', pixCopiaCola: '', dataEntregaGarantida: '',
   });
   const [activeTab, setActiveTab] = useState<PaymentTab>('pix');
@@ -461,13 +440,15 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
   const [copied, setCopied] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const [showQR, setShowQR] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(15 * 60);
+  const [timeLeft, setTimeLeft] = useState(30 * 60);
   const [showFallbackRedirect, setShowFallbackRedirect] = useState(false);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [cardInitError, setCardInitError] = useState<string | null>(null);
   const [cardInitLoading, setCardInitLoading] = useState(false);
   const [redirectCountdown, setRedirectCountdown] = useState<number | null>(null);
-  
+  const [pixGenerating, setPixGenerating] = useState(true); // true por padrão — evita flash do bloco "Gerar PIX" antes do auto-pix disparar
+  const [pixError, setPixError] = useState<string | null>(null);
+  const [pixRequested, setPixRequested] = useState(false);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const redirectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -482,7 +463,42 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
       if (urlPedidoId) {
         const data = await buscarPedido(urlPedidoId);
         if (data) {
-          setSession(data as SessionData);
+          // Mapear campos Firestore (estilo/voz/genero) para SessionData (estiloMusical/vozMusical/generoDestinatario)
+          const p = data as any;
+          setSession({
+            nome: p.nome || '',
+            generoDestinatario: p.genero === 'F' ? 'F' : 'M',
+            estiloMusical: p.estilo || p.estiloMusical || '',
+            vozMusical: p.voz || p.vozMusical || '',
+            compradorNome: p.compradorNome || '',
+            compradorWhatsApp: p.compradorWhatsApp || '',
+            compradorEmail: p.compradorEmail || '',
+            idPedido: urlPedidoId,
+            pixQRCodeUrl: p.pixQRCodeUrl || '',
+            pixCopiaCola: p.pixCopiaCola || '',
+            dataEntregaGarantida: p.dataEntregaGarantida || '',
+            ...(p.campoA !== undefined && { campoA: p.campoA }),
+            ...(p.campoB !== undefined && { campoB: p.campoB }),
+            ...(p.campoC !== undefined && { campoC: p.campoC }),
+            ...(p.campoCOutro !== undefined && { campoCOutro: p.campoCOutro }),
+            ...(p.vinculo !== undefined && { vinculo: p.vinculo }),
+            ...(p.genero !== undefined && { genero: p.genero }),
+          });
+          // Calcular tempo restante real do PIX com base em pixCriadoEm
+          if (p.pixCopiaCola && p.pixCriadoEm) {
+            const criadoEm = new Date(p.pixCriadoEm).getTime();
+            const expiresAt = criadoEm + 30 * 60 * 1000;
+            const segundosRestantes = Math.floor((expiresAt - Date.now()) / 1000);
+            if (segundosRestantes <= 0) {
+              setPixState('expired');
+              setTimeLeft(0);
+            } else {
+              setPixState('active');
+              setTimeLeft(segundosRestantes);
+            }
+          }
+          // PIX já existe no Firestore — não precisa gerar, para o loading
+          if (p.pixCopiaCola) setPixGenerating(false);
           return;
         }
       }
@@ -522,16 +538,16 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
           // (ConversionsScreen salvou tudo no addDoc — nome, estilo, voz, gênero, etc.)
           // Isso evita o bug do "nome antigo" quando virahit_quiz_draft foi deletado
           if (pedidoSalvo) {
-            // Mapear nomes do Firestore (salvos pelo Quiz) para nomes do SessionData
             const p = pedidoSalvo as any;
-            const mapped: SessionData = {
+            setSession({
               nome: p.nome || '',
               generoDestinatario: p.genero === 'F' ? 'F' : 'M',
               estiloMusical: p.estilo || '',
               vozMusical: p.voz || '',
               compradorNome: p.compradorNome || '',
               compradorWhatsApp: p.compradorWhatsApp || '',
-              idPedido: p.idPedido || storedIdPedido,
+              compradorEmail: p.compradorEmail || '',
+              idPedido: storedIdPedido,
               pixQRCodeUrl: p.pixQRCodeUrl || '',
               pixCopiaCola: p.pixCopiaCola || '',
               dataEntregaGarantida: p.dataEntregaGarantida || '',
@@ -541,8 +557,26 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
               ...(p.campoCOutro !== undefined && { campoCOutro: p.campoCOutro }),
               ...(p.vinculo !== undefined && { vinculo: p.vinculo }),
               ...(p.genero !== undefined && { genero: p.genero }),
-            };
-            setSession(mapped);
+            });
+
+            // Calcular tempo restante real do PIX com base em pixCriadoEm
+            if (p.pixCopiaCola && p.pixCriadoEm) {
+              const criadoEm = new Date(p.pixCriadoEm).getTime();
+              const expiresAt = criadoEm + 30 * 60 * 1000; // 30 minutos
+              const segundosRestantes = Math.floor((expiresAt - Date.now()) / 1000);
+              if (segundosRestantes <= 0) {
+                // PIX já expirou — mostrar estado expirado
+                setPixState('expired');
+                setTimeLeft(0);
+              } else {
+                // PIX ainda válido — cronômetro de onde parou
+                setPixState('active');
+                setTimeLeft(segundosRestantes);
+              }
+            }
+
+            // PIX já existe — não precisa gerar, para o loading
+            if (p.pixCopiaCola) setPixGenerating(false);
             return;
           }
         } catch { /* se falhar a busca, continua normalmente */ }
@@ -580,25 +614,30 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
       if (newSession.idPedido !== 'demo-pedido') {
         await salvarPedido(newSession.idPedido, newSession);
       }
+
+      // Se já tem PIX no localStorage, para o loading
+      if (newSession.pixCopiaCola) setPixGenerating(false);
     }
-    
+
     loadData();
   }, []);
 
-  // EAGER PIX: gerar QR code automaticamente assim que o pedido estiver carregado
-  // (não espera o usuário clicar na aba PIX). Preparação para escala: menos cliques = mais conversão.
+  // PIX gerado automaticamente quando pedidoId está disponível e não há PIX ainda
+  // Usa ref para evitar problema de hoisting com handleRegeneratePix declarado abaixo
+  const autoPixRef = useRef<(() => void) | null>(null);
   useEffect(() => {
     if (
       session.idPedido &&
       session.idPedido !== 'demo-pedido' &&
       !session.pixCopiaCola &&
-      pixState === 'active' &&
-      pageState === 'checkout'
+      pixState !== 'expired' &&
+      pageState === 'checkout' &&
+      autoPixRef.current
     ) {
-      handleRegeneratePix();
+      autoPixRef.current();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session.idPedido, session.pixCopiaCola, pixState, pageState]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session.idPedido]);
 
   const fetchClientSecret = useCallback(async (forcePedidoId?: string) => {
     const id = forcePedidoId || session.idPedido;
@@ -633,7 +672,6 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
       const msg = e?.name === 'AbortError' ? 'O servidor demorou muito para responder. Tente novamente.' : 'Erro de conexão. Verifique sua internet e tente novamente.';
       setCardInitError(msg);
       emitPaymentEvent(id, 'pagamento_falhou', { erro: e?.message || 'fetch /api/pagamento/criar-intencao falhou', meta: { etapa: 'criar_intencao' } });
-      logFrontendError('checkout', 'criar_intencao', e, { pedidoId: id });
     } finally {
       setCardInitLoading(false);
     }
@@ -661,7 +699,12 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
     if (pixState !== 'active' || pageState !== 'checkout') return;
     timerRef.current = setInterval(() => {
       setTimeLeft((prev) => {
-        if (prev <= 1) { clearInterval(timerRef.current!); return 0; }
+        if (prev <= 1) {
+          clearInterval(timerRef.current!);
+          setPixState('expired');
+          setSession((s) => ({ ...s, pixCopiaCola: '' }));
+          return 0;
+        }
         return prev - 1;
       });
     }, 1000);
@@ -671,28 +714,26 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
   useEffect(() => {
     if (!session.idPedido || session.idPedido === 'demo-pedido' || pageState === 'confirmed') return;
 
-    // Se o pedido não tem PIX ainda, e estamos na aba pix, vamos gerar agora!
-    if (!session.pixCopiaCola && activeTab === 'pix') {
-       handleRegeneratePix();
-    }
+    const confirmarPagamento = () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      localStorage.removeItem('idPedido');
+      localStorage.removeItem('pixQRCodeUrl');
+      localStorage.removeItem('pixCopiaCola');
+      localStorage.removeItem('dataEntregaGarantida');
+      localStorage.removeItem('compradorNome');
+      localStorage.removeItem('compradorWhatsApp');
+      localStorage.removeItem('generoDestinatario');
+      localStorage.removeItem('estiloMusical');
+      localStorage.removeItem('vozMusical');
+      setPageState('confirmed');
+      setRedirectCountdown(15);
+    };
 
     const unsub = onSnapshot(doc(db, 'pedidos', session.idPedido), (snap) => {
       if (snap.exists()) {
         const data = snap.data();
         if (data.status === 'pago') {
-          if (timerRef.current) clearInterval(timerRef.current);
-          // Limpar localStorage — pedido pago, proxima sessao começa do zero
-          localStorage.removeItem('idPedido');
-          localStorage.removeItem('pixQRCodeUrl');
-          localStorage.removeItem('pixCopiaCola');
-          localStorage.removeItem('dataEntregaGarantida');
-          localStorage.removeItem('compradorNome');
-          localStorage.removeItem('compradorWhatsApp');
-          localStorage.removeItem('generoDestinatario');
-          localStorage.removeItem('estiloMusical');
-          localStorage.removeItem('vozMusical');
-          setPageState('confirmed');
-          setRedirectCountdown(15);
+          confirmarPagamento();
         } else if (data.status === 'expirado') {
           if (timerRef.current) clearInterval(timerRef.current);
           setPixState('expired');
@@ -700,9 +741,22 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
       }
     });
 
+    // Polling de backup — inicia 30s após PIX ativo, verifica a cada 15s
+    const pollingDelay = setTimeout(() => {
+      pollingRef.current = setInterval(async () => {
+        try {
+          const snap = await getDoc(doc(db, 'pedidos', session.idPedido));
+          if (snap.exists() && snap.data().status === 'pago') {
+            confirmarPagamento();
+          }
+        } catch { /* falha silenciosa — onSnapshot continua como primario */ }
+      }, 15000);
+    }, 30000);
+
     return () => {
       unsub();
-      if (pollingRef.current) clearInterval(pollingRef.current); 
+      clearTimeout(pollingDelay);
+      if (pollingRef.current) clearInterval(pollingRef.current);
     };
   }, [session.idPedido, pageState, onCompleted, activeTab, session.pixCopiaCola]);
 
@@ -792,17 +846,35 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
   };
 
   const handleRegeneratePix = async () => {
+    if (!session.idPedido || session.idPedido === 'demo-pedido') return;
+    // Guard: só bloqueia se está gerando OU se tem PIX ativo válido (não expirado)
+    if (pixGenerating) return;
+    if (session.pixCopiaCola && pixState === 'active') return;
+
+    setPixGenerating(true);
+    setPixError(null);
     try {
       const res = await fetch('/api/pix', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        // Envia apenas campos necessários — nunca o session inteiro (evita PayloadTooLarge)
         body: JSON.stringify({
           pedidoId: session.idPedido,
-          nome: session.nome || session.compradorNome,
+          nome: session.compradorNome || session.nome,
+          compradorNome: session.compradorNome || session.nome,
           compradorWhatsApp: session.compradorWhatsApp,
+          compradorEmail: session.compradorEmail || '',
         }),
       });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        const errorMsg = errorData.error || (res.status === 429 ? 'Muitas tentativas, aguarde.' : 'Erro ao gerar PIX.');
+        setPixError(errorMsg);
+        setPixGenerating(false);
+        setPixRequested(false);
+        return;
+      }
+
       const data = await res.json();
       if (data.charge && data.charge.brCode) {
         const pixQRCodeUrl = data.charge.qrCodeImage || data.charge.paymentLinkUrl;
@@ -811,16 +883,25 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
         sessionStorage.setItem('pixCopiaCola', pixCopiaCola);
         setSession((prev) => ({ ...prev, pixQRCodeUrl, pixCopiaCola }));
         setPixState('active');
-        setTimeLeft(15 * 60);
+        setTimeLeft(30 * 60);
       } else {
-        logFrontendError('checkout', 'gerar_pix', new Error(`Woovi retornou: ${JSON.stringify(data).slice(0,200)}`), { pedidoId: session.idPedido });
+        setPixError('Não foi possível gerar o PIX. Tente novamente.');
       }
     } catch (e: any) {
-      logFrontendError('checkout', 'gerar_pix', e, { pedidoId: session.idPedido });
-      setPixState('active');
-      setTimeLeft(15 * 60);
+      setPixError('Erro de conexao. Verifique sua internet e tente novamente.');
+    } finally {
+      // Garante loading minimo de 1.2s visivel — se a API for rapida demais,
+      // o React pode nunca renderizar o spinner visivelmente
+      const startTime = performance.now();
+      if (startTime < 1200) {
+        await new Promise(r => setTimeout(r, 1200));
+      }
+      setPixGenerating(false);
     }
   };
+
+  // Registrar handleRegeneratePix na ref para uso no useEffect de PIX automático
+  autoPixRef.current = handleRegeneratePix;
 
   const timerIsWarning = timeLeft <= 180;
   
@@ -886,13 +967,8 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
   return (
     <div className="min-h-screen bg-[#F4EEDC]" style={{ fontFamily: 'Merriweather, serif' }}>
       <header className="sticky top-0 z-40 bg-[#F4EEDC]">
-        <div className="max-w-md mx-auto px-4 h-14 relative flex items-center justify-center">
-          <span className="font-extrabold text-[#2C5D63] text-[20px] uppercase tracking-widest" style={{ fontFamily: 'Open Sans, sans-serif' }}>ViraHit</span>
-          
-          <div className="absolute right-4 flex items-center gap-1.5">
-            <Lock className="w-[16px] h-[16px] text-[#2C5D63]" strokeWidth={2} />
-            <span className="text-[#2C5D63] text-[13px] font-bold" style={{ fontFamily: 'Open Sans, sans-serif' }}>Pagamento seguro</span>
-          </div>
+        <div className="max-w-md mx-auto px-4 h-14 flex items-center justify-center">
+          <img src="/nova-logo-virahit.svg" alt="ViraHit" className="h-8 w-auto" />
         </div>
       </header>
 
@@ -902,7 +978,7 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
         <section className="bg-white/50 border border-[#2C5D63]/10 rounded-xl p-3 flex items-center justify-between shadow-sm mt-[-8px]">
           <div className="flex flex-col min-w-0 flex-1 pr-3">
             <h1 className="font-bold text-[#2C5D63] text-[14.5px] truncate" style={{ fontFamily: 'Merriweather, serif' }}>
-              {resolverGenero('Música [DA_DO] [NOME]', session.generoDestinatario, session.nome || 'João')}
+              {session.nome ? resolverGenero('Música [DA_DO] [NOME]', session.generoDestinatario, session.nome) : resolverGenero('Música [DA_DO] [NOME]', session.generoDestinatario, '...')}
             </h1>
             <p className="text-[#2C5D63]/60 text-[12px] mt-1 leading-none font-medium truncate" style={{ fontFamily: 'Open Sans, sans-serif' }}>
               {session.estiloMusical || 'Sertanejo'} &bull; {session.vozMusical ? `Voz ${session.vozMusical}` : 'Voz Masculina'}
@@ -934,7 +1010,51 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
 
           {activeTab === 'pix' && (
             <div className="flex flex-col items-center gap-5 pt-3 w-full">
-              {pixState === 'active' ? (
+              {/* ESTADO INICIAL: botao para gerar PIX */}
+              {!session.pixCopiaCola && (
+                <div className="w-full flex flex-col items-center gap-5 bg-[#F4EEDC]/50 border border-[#2C5D63]/10 rounded-[20px] p-6 text-center">
+                  {pixGenerating ? (
+                    <>
+                      <Loader2 className="w-16 h-16 text-[#33A854] animate-spin" strokeWidth={1.5} />
+                      <div>
+                        <p className="text-[#2C5D63] text-[17px] font-bold font-['Open_Sans']">Criando seu PIX...</p>
+                        <p className="text-[#2C5D63]/60 text-[13px] font-['Merriweather'] mt-2">Só um momento, estamos gerando o código de pagamento.</p>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <QrCode className="w-12 h-12 text-[#2C5D63]/40" strokeWidth={1.5} />
+                      <p className="text-[#2C5D63]/80 text-[15px] leading-relaxed">
+                        Pague com PIX e receba sua música em até <span className="font-bold text-[#128C7E]">24h no WhatsApp</span>.
+                      </p>
+                      <p className="text-[#2C5D63]/60 text-[13px] font-medium">
+                        O código PIX é gerado na hora — rápido e seguro.
+                      </p>
+                    </>
+                  )}
+                  {pixError && (
+                    <div className="w-full bg-red-50 border border-red-300 rounded-xl px-4 py-3 mt-1">
+                      <p className="text-red-700 text-[13px] font-['Merriweather']">{pixError}</p>
+                    </div>
+                  )}
+                  {!pixGenerating && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        setPixRequested(true);
+                        await handleRegeneratePix();
+                      }}
+                      className="flex items-center justify-center gap-2 w-full h-[56px] rounded-full bg-[#33A854] text-white font-bold text-[15px] uppercase tracking-wide hover:bg-[#2d954b] active:scale-[0.98] transition-all duration-200 mt-2 shadow-[0_8px_20px_rgba(51,168,84,0.3)]"
+                      style={{ fontFamily: 'Open Sans, sans-serif', fontWeight: 800 }}
+                    >
+                      <QrCode className="w-[20px] h-[20px]" />Gerar PIX
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* PIX GERADO — fluxo normal de pagamento */}
+              {session.pixCopiaCola && pixState === 'active' && !pixGenerating && (
                 <>
                   <div className="w-full flex flex-col gap-4">
                     {/* The input field representing Copia e Cola */}
@@ -960,7 +1080,7 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
                     >
                       {!copied && <div className="absolute inset-0 bg-white/10 opacity-0 hover:opacity-100 transition-opacity"></div>}
                       <div className="relative z-10 flex items-center gap-2 uppercase">
-                        {copied ? <><Check className="w-[20px] h-[20px]" strokeWidth={2.5} />COPIADO! ✓</> : <><Copy className="w-[18px] h-[18px]" strokeWidth={2.5} />COPIAR CÓDIGO QR CODE</>}
+                        {copied ? <><Check className="w-[20px] h-[20px]" strokeWidth={2.5} />COPIADO!</> : <><Copy className="w-[18px] h-[18px]" strokeWidth={2.5} />COPIAR CÓDIGO QR CODE</>}
                       </div>
                     </button>
                     
@@ -1006,16 +1126,36 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
                   <span className="text-[#2C5D63]/50 text-[11px]">CNPJ: 54.218.428/0001-44</span>
                 </div>
                 </>
-              ) : (
+              )}
+
+              {/* PIX EXPIRADO — gerar novo */}
+              {pixState === 'expired' && (
                 <div className="w-full flex flex-col items-center gap-4 bg-[#F4EEDC]/50 border border-[#2C5D63]/10 rounded-[20px] p-6 text-center">
-                  <Clock className="w-12 h-12 text-[#2C5D63]/50" strokeWidth={1.5} />
-                  <p className="text-[#2C5D63]/80 text-[15px] leading-relaxed">O código expirou, mas seu pedido está guardado. Gere um novo em segundos:</p>
-                  <button type="button" onClick={handleRegeneratePix}
-                    className="flex items-center justify-center gap-2 w-full h-[56px] rounded-full bg-[#33A854] text-white font-bold text-[15px] uppercase tracking-wide hover:bg-[#2d954b] active:scale-[0.98] transition-all duration-200 mt-2 shadow-[0_8px_20px_rgba(51,168,84,0.3)]"
-                    style={{ fontFamily: 'Open Sans, sans-serif', fontWeight: 800 }}
-                  >
-                    <QrCode className="w-[20px] h-[20px]" />Gerar novo PIX
-                  </button>
+                  {pixGenerating ? (
+                    <>
+                      <Loader2 className="w-16 h-16 text-[#33A854] animate-spin" strokeWidth={1.5} />
+                      <div>
+                        <p className="text-[#2C5D63] text-[17px] font-bold font-['Open_Sans']">Gerando novo PIX...</p>
+                        <p className="text-[#2C5D63]/60 text-[13px] font-['Merriweather'] mt-2">Só um momento.</p>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <Clock className="w-12 h-12 text-[#2C5D63]/50" strokeWidth={1.5} />
+                      <p className="text-[#2C5D63]/80 text-[15px] leading-relaxed">O código expirou, mas seu pedido está guardado. Gere um novo em segundos:</p>
+                      {pixError && (
+                        <div className="w-full bg-red-50 border border-red-300 rounded-xl px-4 py-3">
+                          <p className="text-red-700 text-[13px] font-['Merriweather']">{pixError}</p>
+                        </div>
+                      )}
+                      <button type="button" onClick={handleRegeneratePix}
+                        className="flex items-center justify-center gap-2 w-full h-[56px] rounded-full bg-[#33A854] text-white font-bold text-[15px] uppercase tracking-wide hover:bg-[#2d954b] active:scale-[0.98] transition-all duration-200 mt-2 shadow-[0_8px_20px_rgba(51,168,84,0.3)]"
+                        style={{ fontFamily: 'Open Sans, sans-serif', fontWeight: 800 }}
+                      >
+                        <QrCode className="w-[20px] h-[20px]" />Gerar novo PIX
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -1174,17 +1314,6 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
           </div>
         </section>
 
-        {/* APENAS PARA TESTE VISUAL DA TELA DE OBRIGADO */}
-        <button 
-          onClick={() => {
-            if (timerRef.current) clearInterval(timerRef.current);
-            setPageState('confirmed');
-            setRedirectCountdown(15);
-          }} 
-          className="text-[11px] text-[#2C5D63]/40 underline text-center mt-2"
-        >
-          [Teste] Visualizar tela de pós-pagamento
-        </button>
       </main>
     </div>
   );
