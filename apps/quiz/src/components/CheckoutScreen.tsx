@@ -81,6 +81,7 @@ const BANK_ERRORS = new Set([
   'incorrect_number', 'invalid_number', 'invalid_expiry_month', 'invalid_expiry_year',
   'invalid_cvc', 'incomplete_number', 'incomplete_expiry', 'incomplete_cvc',
   'processing_error', 'authentication_required',
+  'do_not_honor', 'restricted_card', 'pickup_card', 'card_not_supported', 'currency_not_supported', 'transaction_not_allowed',
 ]);
 
 function categorizeError(code?: string): 'banco' | '3ds_timeout' | 'infra' {
@@ -105,6 +106,12 @@ const STRIPE_ERROR_MESSAGES: Record<string, string> = {
   incomplete_cvc: 'Código de segurança (CVV) incompleto.',
   invalid_number: 'Número do cartão inválido.',
   authentication_required: 'Autenticação necessária.',
+  do_not_honor: 'Pagamento não autorizado pelo banco. Tente outro cartão ou use o PIX.',
+  restricted_card: 'Este cartão tem restrições. Tente outro cartão ou use o PIX.',
+  pickup_card: 'Cartão bloqueado pelo banco. Use outro cartão ou pague com PIX.',
+  card_not_supported: 'Este tipo de cartão não é aceito. Tente outro cartão ou use o PIX.',
+  currency_not_supported: 'Cartão não aceita pagamentos em BRL. Use outro cartão ou pague com PIX.',
+  transaction_not_allowed: 'Transação não permitida pelo banco. Tente outro cartão ou use o PIX.',
 };
 
 function humanizeStripeError(code?: string, message?: string): string {
@@ -440,7 +447,7 @@ function CardForm({ onSwitchToPix, onPaymentConfirmed, pedidoId }: CardFormProps
 }
 
 import { salvarPedido, buscarPedido, db } from '../lib/firebase';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, getDoc } from 'firebase/firestore';
 
 function getWhatsAppUrl(session: SessionData) {
   const nomeFormatado = session.nome ? session.nome.charAt(0).toUpperCase() + session.nome.slice(1).toLowerCase() : 'a pessoa';
@@ -461,7 +468,7 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
   const [copied, setCopied] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const [showQR, setShowQR] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(15 * 60);
+  const [timeLeft, setTimeLeft] = useState(30 * 60);
   const [showFallbackRedirect, setShowFallbackRedirect] = useState(false);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [cardInitError, setCardInitError] = useState<string | null>(null);
@@ -483,6 +490,20 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
         const data = await buscarPedido(urlPedidoId);
         if (data) {
           setSession(data as SessionData);
+          // Calcular tempo restante real do PIX com base em pixCriadoEm
+          const p = data as any;
+          if (p.pixCopiaCola && p.pixCriadoEm) {
+            const criadoEm = new Date(p.pixCriadoEm).getTime();
+            const expiresAt = criadoEm + 30 * 60 * 1000;
+            const segundosRestantes = Math.floor((expiresAt - Date.now()) / 1000);
+            if (segundosRestantes <= 0) {
+              setPixState('expired');
+              setTimeLeft(0);
+            } else {
+              setPixState('active');
+              setTimeLeft(segundosRestantes);
+            }
+          }
           return;
         }
       }
@@ -543,6 +564,21 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
               ...(p.genero !== undefined && { genero: p.genero }),
             };
             setSession(mapped);
+
+            // Calcular tempo restante real do PIX com base em pixCriadoEm
+            if (p.pixCopiaCola && p.pixCriadoEm) {
+              const criadoEm = new Date(p.pixCriadoEm).getTime();
+              const expiresAt = criadoEm + 30 * 60 * 1000;
+              const segundosRestantes = Math.floor((expiresAt - Date.now()) / 1000);
+              if (segundosRestantes <= 0) {
+                setPixState('expired');
+                setTimeLeft(0);
+              } else {
+                setPixState('active');
+                setTimeLeft(segundosRestantes);
+              }
+            }
+
             return;
           }
         } catch { /* se falhar a busca, continua normalmente */ }
@@ -661,7 +697,12 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
     if (pixState !== 'active' || pageState !== 'checkout') return;
     timerRef.current = setInterval(() => {
       setTimeLeft((prev) => {
-        if (prev <= 1) { clearInterval(timerRef.current!); return 0; }
+        if (prev <= 1) {
+          clearInterval(timerRef.current!);
+          setPixState('expired');
+          setSession((s) => ({ ...s, pixCopiaCola: '' }));
+          return 0;
+        }
         return prev - 1;
       });
     }, 1000);
@@ -676,23 +717,26 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
        handleRegeneratePix();
     }
 
+    const confirmarPagamento = () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      localStorage.removeItem('idPedido');
+      localStorage.removeItem('pixQRCodeUrl');
+      localStorage.removeItem('pixCopiaCola');
+      localStorage.removeItem('dataEntregaGarantida');
+      localStorage.removeItem('compradorNome');
+      localStorage.removeItem('compradorWhatsApp');
+      localStorage.removeItem('generoDestinatario');
+      localStorage.removeItem('estiloMusical');
+      localStorage.removeItem('vozMusical');
+      setPageState('confirmed');
+      setRedirectCountdown(15);
+    };
+
     const unsub = onSnapshot(doc(db, 'pedidos', session.idPedido), (snap) => {
       if (snap.exists()) {
         const data = snap.data();
         if (data.status === 'pago') {
-          if (timerRef.current) clearInterval(timerRef.current);
-          // Limpar localStorage — pedido pago, proxima sessao começa do zero
-          localStorage.removeItem('idPedido');
-          localStorage.removeItem('pixQRCodeUrl');
-          localStorage.removeItem('pixCopiaCola');
-          localStorage.removeItem('dataEntregaGarantida');
-          localStorage.removeItem('compradorNome');
-          localStorage.removeItem('compradorWhatsApp');
-          localStorage.removeItem('generoDestinatario');
-          localStorage.removeItem('estiloMusical');
-          localStorage.removeItem('vozMusical');
-          setPageState('confirmed');
-          setRedirectCountdown(15);
+          confirmarPagamento();
         } else if (data.status === 'expirado') {
           if (timerRef.current) clearInterval(timerRef.current);
           setPixState('expired');
@@ -700,9 +744,22 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
       }
     });
 
+    // Polling de backup — inicia 30s após PIX ativo, verifica a cada 15s
+    const pollingDelay = setTimeout(() => {
+      pollingRef.current = setInterval(async () => {
+        try {
+          const snap = await getDoc(doc(db, 'pedidos', session.idPedido));
+          if (snap.exists() && snap.data().status === 'pago') {
+            confirmarPagamento();
+          }
+        } catch { /* falha silenciosa */ }
+      }, 15000);
+    }, 30000);
+
     return () => {
       unsub();
-      if (pollingRef.current) clearInterval(pollingRef.current); 
+      clearTimeout(pollingDelay);
+      if (pollingRef.current) clearInterval(pollingRef.current);
     };
   }, [session.idPedido, pageState, onCompleted, activeTab, session.pixCopiaCola]);
 
@@ -792,6 +849,8 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
   };
 
   const handleRegeneratePix = async () => {
+    if (!session.idPedido || session.idPedido === 'demo-pedido') return;
+    if (pixGenerating || (session.pixCopiaCola && pixState !== 'expired')) return;
     try {
       const res = await fetch('/api/pix', {
         method: 'POST',
@@ -799,7 +858,8 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
         // Envia apenas campos necessários — nunca o session inteiro (evita PayloadTooLarge)
         body: JSON.stringify({
           pedidoId: session.idPedido,
-          nome: session.nome || session.compradorNome,
+          nome: session.compradorNome || session.nome,
+          compradorNome: session.compradorNome || session.nome,
           compradorWhatsApp: session.compradorWhatsApp,
         }),
       });
@@ -811,7 +871,7 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
         sessionStorage.setItem('pixCopiaCola', pixCopiaCola);
         setSession((prev) => ({ ...prev, pixQRCodeUrl, pixCopiaCola }));
         setPixState('active');
-        setTimeLeft(15 * 60);
+        setTimeLeft(30 * 60);
       } else {
         logFrontendError('checkout', 'gerar_pix', new Error(`Woovi retornou: ${JSON.stringify(data).slice(0,200)}`), { pedidoId: session.idPedido });
       }
@@ -886,13 +946,8 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
   return (
     <div className="min-h-screen bg-[#F4EEDC]" style={{ fontFamily: 'Merriweather, serif' }}>
       <header className="sticky top-0 z-40 bg-[#F4EEDC]">
-        <div className="max-w-md mx-auto px-4 h-14 relative flex items-center justify-center">
-          <span className="font-extrabold text-[#2C5D63] text-[20px] uppercase tracking-widest" style={{ fontFamily: 'Open Sans, sans-serif' }}>ViraHit</span>
-          
-          <div className="absolute right-4 flex items-center gap-1.5">
-            <Lock className="w-[16px] h-[16px] text-[#2C5D63]" strokeWidth={2} />
-            <span className="text-[#2C5D63] text-[13px] font-bold" style={{ fontFamily: 'Open Sans, sans-serif' }}>Pagamento seguro</span>
-          </div>
+        <div className="max-w-md mx-auto px-4 h-14 flex items-center justify-center">
+          <img src="/nova-logo-virahit.svg" alt="ViraHit" className="h-8 w-auto" />
         </div>
       </header>
 
@@ -996,6 +1051,25 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
                   <span className={`inline-flex items-center justify-center px-5 py-1.5 rounded-full font-mono font-bold text-white text-[17px] transition-colors duration-500 shadow-sm ${timerIsWarning ? 'bg-red-500 animate-pulse' : 'bg-[#128C7E]'}`}>
                     {formatTime(timeLeft)}
                   </span>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        const snap = await getDoc(doc(db, 'pedidos', session.idPedido));
+                        if (snap.exists() && snap.data().status === 'pago') {
+                          if (timerRef.current) clearInterval(timerRef.current);
+                          localStorage.removeItem('idPedido');
+                          setPageState('confirmed');
+                          setRedirectCountdown(15);
+                        } else {
+                          setPixError('Pagamento ainda não identificado. Aguarde alguns instantes e tente novamente.');
+                        }
+                      } catch { setPixError('Erro ao verificar. Tente novamente.'); }
+                    }}
+                    className="text-[#2C5D63]/50 text-[12px] underline underline-offset-2 mt-1 hover:text-[#2C5D63]/80 transition-colors"
+                  >
+                    Já paguei, não está confirmando?
+                  </button>
                 </div>
                 
                 <div className="flex flex-col items-center w-full mt-1 gap-1">
@@ -1174,17 +1248,6 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
           </div>
         </section>
 
-        {/* APENAS PARA TESTE VISUAL DA TELA DE OBRIGADO */}
-        <button 
-          onClick={() => {
-            if (timerRef.current) clearInterval(timerRef.current);
-            setPageState('confirmed');
-            setRedirectCountdown(15);
-          }} 
-          className="text-[11px] text-[#2C5D63]/40 underline text-center mt-2"
-        >
-          [Teste] Visualizar tela de pós-pagamento
-        </button>
       </main>
     </div>
   );
