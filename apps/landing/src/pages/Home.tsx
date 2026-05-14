@@ -37,22 +37,22 @@ export default function Home() {
       <Header />
       <main>
         {/* ===== SEÇÃO 1 — HERO ===== */}
-        <section className="relative px-6 pt-32 pb-24 overflow-hidden">
+        <section className="relative px-4 pt-20 pb-12 overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 abstract-pattern -z-10 rotate-12 translate-x-1/2"></div>
-            <div className="max-w-4xl mx-auto flex flex-col gap-10">
+            <div className="max-w-4xl mx-auto flex flex-col gap-6">
             <div className="relative">
               <h1 className="text-[clamp(2.5rem,11vw,4rem)] sm:text-6xl md:text-7xl lg:text-8xl leading-[1.1] text-[var(--teal)] mb-8 tracking-tight">
                 <span className="block">SUA</span>
                 <span className="block">HISTÓRIA</span>
                 <span className="text-[var(--gold)] block mt-2 italic">VIRA MÚSICA</span>
               </h1>
-              <div className="ml-auto w-4/5 border-l-2 border-[var(--gold)] pl-6 py-2 mb-10">
+              <div className="ml-auto w-4/5 border-l-2 border-[var(--gold)] pl-6 py-2 mb-4">
                 <p className="text-[var(--teal-light)] text-lg sm:text-xl md:text-2xl font-light leading-relaxed italic">
                   Você responde 4 perguntinhas sobre a história de vocês. Em 24h, chega uma música com o nome dela — do jeito que vocês viveram isso. Por R$47, você dá um presente que nenhuma loja do mundo tem igual.
                 </p>
               </div>
             </div>
-            <div className="relative w-full flex justify-center py-8">
+            <div className="relative w-full flex justify-center">
               <HeroVideo />
             </div>
             <div className="flex flex-col items-center gap-4 w-full">
