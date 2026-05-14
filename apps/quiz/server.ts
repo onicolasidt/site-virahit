@@ -114,7 +114,7 @@ app.post("/api/pix", async (req: any, res: any) => {
   }
 
   try {
-    const { pedidoId, session, nome, compradorWhatsApp, compradorEmail } = req.body;
+    const { pedidoId, session, nome, compradorWhatsApp } = req.body;
 
     if (!pedidoId) {
       log('WARN', 'VALIDATION', 'PIX: pedidoId ausente no body', { requestId, payload: sanitize(req.body) });
@@ -135,7 +135,6 @@ app.post("/api/pix", async (req: any, res: any) => {
     // Extrair dados do cliente — compradorNome tem prioridade sobre nome do homenageado
     const clienteNome = nome || session?.compradorNome || session?.nome || 'Cliente ViraHit';
     const clienteWhatsApp = compradorWhatsApp || session?.compradorWhatsApp || session?.whatsapp || "5511999999999";
-    const clienteEmail = compradorEmail || session?.compradorEmail || `${pedidoId}@virahit.com`;
 
     log('INFO', 'PIX', `Criando cobrança PIX para pedido ${pedidoId}`, {
       requestId,
@@ -188,7 +187,7 @@ app.post("/api/pix", async (req: any, res: any) => {
           comment: `ViraHit - Música ${clienteNome}`,
           customer: {
             name: clienteNome,
-            email: clienteEmail,
+            email: `${pedidoId}@virahit.com`,
             phone: clienteWhatsApp
           }
         }),
