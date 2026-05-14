@@ -16,4 +16,3 @@ dist/
 
 # PM2 logs
 pm2*.log
-.vercel

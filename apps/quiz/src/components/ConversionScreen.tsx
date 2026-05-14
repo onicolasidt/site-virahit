@@ -6,7 +6,7 @@ import { AUDIO_EXEMPLOS_CONVERSAO } from '../lib/audioExemplos';
 
 interface ConversionScreenProps {
   onBackToQuiz: () => void;
-  onGoToCheckout: () => void;
+  onGoToCheckout?: () => void;
 }
 
 export function ConversionScreen({ onBackToQuiz, onGoToCheckout }: ConversionScreenProps) {
@@ -114,7 +114,6 @@ export function ConversionScreen({ onBackToQuiz, onGoToCheckout }: ConversionScr
   };
 
   const handleSubmit = async () => {
-    if (isSubmitting) return;
     const newErrors = { nome: '', whatsapp: '', email: '' };
     const errorRefs: Array<RefObject<HTMLDivElement>> = [];
     let hasError = false;
@@ -124,14 +123,13 @@ export function ConversionScreen({ onBackToQuiz, onGoToCheckout }: ConversionScr
       errorRefs.push(nomeRef);
       hasError = true;
     }
-    const phoneDigits = cleanPhone(whatsapp).replace(/^55/, '');
-    if (phoneDigits.length !== 11 || phoneDigits[2] !== '9') {
-newErrors.whatsapp = 'Digite um celular válido com DDD (ex: 11 99999-9999)';
+    if (cleanPhone(whatsapp).length < 10) {
+      newErrors.whatsapp = 'Confere o número — parece que tem algo errado';
       errorRefs.push(whatsappRef);
       hasError = true;
     }
     if (!validateEmail(email)) {
-newErrors.email = 'Digite um e-mail válido';
+      newErrors.email = 'Confere o email — parece que tem algo errado';
       errorRefs.push(emailRef);
       hasError = true;
     }
@@ -146,27 +144,17 @@ newErrors.email = 'Digite um e-mail válido';
 
     try {
       // Salva TUDO: dados do Quiz e do comprador num único registro central!
-      const pedidoPayload = {
-        ...data,
+      const pedidoRef = await addDoc(collection(db, 'pedidos'), {
+        ...data, // Todo o mapping do Quiz (incluindo áudios fake IDs em arrays, estilos, vínculos, etc)
         compradorNome: nome,
-        compradorWhatsApp: '55' + cleanPhone(whatsapp).replace(/^55/, ''),
+        compradorWhatsApp: '55' + cleanPhone(whatsapp),
         compradorEmail: email,
-        status: 'pendente',
-        gateway: 'stripe',
+        status: 'pendente', // pre-checkout (ainda não pago)
+        gateway: 'stripe',  // Padrão que definimos para testar Stripe
         criadoEm: serverTimestamp()
-      };
-      const withTimeout = (p: Promise<any>, ms: number) =>
-        Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]);
-      let pedidoRef: any;
-      try {
-        pedidoRef = await withTimeout(addDoc(collection(db, 'pedidos'), pedidoPayload), 10000);
-      } catch (e1: any) {
-        // Retry automatico 1x apos 2s
-        await new Promise(r => setTimeout(r, 2000));
-        pedidoRef = await withTimeout(addDoc(collection(db, 'pedidos'), pedidoPayload), 10000);
-      }
+      });
 
-
+      console.log('Pedido salvo no Firestore no Doc ID: ', pedidoRef.id);
       
       // Salva o idPedido para que o Checkout use
       localStorage.setItem('idPedido', pedidoRef.id);
@@ -175,11 +163,11 @@ newErrors.email = 'Digite um e-mail válido';
       localStorage.removeItem('virahit_quiz_draft');
       localStorage.removeItem('virahit_audio_blobs');
 
-      // Escrever pedidoId na URL — habilita recuperação de carrinho e retorno pelo link
-      window.history.replaceState(null, '', '/quiz/?pedido=' + pedidoRef.id);
-
-      setShowToast(false);
-      onGoToCheckout();
+      if (onGoToCheckout) {
+        onGoToCheckout();
+      } else {
+        alert('Ir para o checkout!');
+      }
     } catch (e: any) {
       const errName = e?.code || e?.name || 'FirebaseError';
       const errMsg = e?.message || String(e);
@@ -274,7 +262,7 @@ newErrors.email = 'Digite um e-mail válido';
       </div>
 
       <header className="sticky top-0 z-50 bg-[var(--cream)]/80 backdrop-blur-md px-6 py-4 flex items-center justify-center border-b border-[var(--teal)]/10">
-        <img src="/nova-logo-virahit.svg" alt="ViraHit" className="h-8 w-auto" />
+        <span className="font-['Open_Sans'] font-extrabold text-xl text-[var(--teal)] tracking-widest uppercase">ViraHit.ai</span>
       </header>
 
       <div className="max-w-md mx-auto px-5 pt-8 sm:pt-14 relative z-10">
@@ -574,10 +562,6 @@ newErrors.email = 'Digite um e-mail válido';
           <button onClick={() => { setShowToast(false); handleSubmit(); }}
             className="shrink-0 bg-white/20 hover:bg-white/30 text-white text-[12px] font-bold px-3 py-2 rounded-xl transition-colors whitespace-nowrap">
             Tentar de novo
-          </button>
-          <button onClick={() => setShowToast(false)}
-            className="shrink-0 text-white/70 hover:text-white transition-colors ml-1" aria-label="Fechar">
-            <span className="material-symbols-outlined text-[18px]">close</span>
           </button>
         </div>
       )}

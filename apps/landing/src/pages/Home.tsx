@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Footer } from '../components/Footer';
 import { Header } from '../components/Header';
-import HeroVideo from '../components/HeroVideo';
+import PhoneMockupCSS from '../components/PhoneMockupCSS';
 import WhatsAppTestimonial from '../components/WhatsAppTestimonial';
 import { ArrowRight, MicOff, CreditCard, Clock, BadgeCheck, Heart, Lock, Award, ChevronDown, Zap } from 'lucide-react';
 
@@ -39,7 +39,12 @@ export default function Home() {
         {/* ===== SEÇÃO 1 — HERO ===== */}
         <section className="relative px-6 pt-32 pb-24 overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 abstract-pattern -z-10 rotate-12 translate-x-1/2"></div>
-            <div className="max-w-4xl mx-auto flex flex-col gap-10">
+          <div className="max-w-4xl mx-auto flex flex-col gap-10">
+            <div className="flex items-center gap-4">
+              <div className="h-[1px] flex-grow bg-[var(--teal)]/20"></div>
+              <span className="text-[var(--gold)] font-bold text-xs tracking-widest uppercase">★★★★★ (4.9) • +1.200 músicas entregues • Entrega em até 24h</span>
+              <div className="h-[1px] flex-grow bg-[var(--teal)]/20"></div>
+            </div>
             <div className="relative">
               <h1 className="text-[clamp(2.5rem,11vw,4rem)] sm:text-6xl md:text-7xl lg:text-8xl leading-[1.1] text-[var(--teal)] mb-8 tracking-tight">
                 <span className="block">SUA</span>
@@ -53,7 +58,7 @@ export default function Home() {
               </div>
             </div>
             <div className="relative w-full flex justify-center py-8">
-              <HeroVideo />
+              <PhoneMockupCSS />
             </div>
             <div className="flex flex-col items-center gap-4 w-full">
               <a href="/quiz" className="group w-full max-w-[480px] bg-[var(--gold)] text-white heading-font text-lg py-5 px-8 rounded-full shadow-xl hover:scale-105 hover:shadow-2xl hover:gold-glow active:scale-95 transition-transform duration-200 flex items-center justify-center gap-3 group-hover:gap-5">
@@ -148,7 +153,7 @@ export default function Home() {
                 <div className="heading-font text-6xl opacity-10 leading-none">01</div>
                 <div className="flex-grow pt-4">
                   <h3 className="text-3xl mb-6 text-[var(--gold)]">Conta a História de Vocês</h3>
-                  <p className="text-lg opacity-80 leading-relaxed max-w-xl font-light">Responde um quiz rapidinho — leva menos de 3 minutos. Nome, ocasião especial, estilo musical que ela ama e um momento que só vocês dois sabem. Sem escrever redação. Sem complicar. A gente pergunta, você responde.</p>
+                  <p className="text-lg opacity-80 leading-relaxed max-w-xl font-light">Responde um quiz rapidinho — leva menos de 5 minutos. Nome, ocasião especial, estilo musical que ela ama e um momento que só vocês dois sabem. Sem escrever redação. Sem complicar. A gente pergunta, você responde.</p>
                 </div>
               </div>
               <div className="flex flex-col md:flex-row-reverse gap-10 items-start">
@@ -246,7 +251,7 @@ export default function Home() {
                 <tr className="border-b border-[var(--teal)]/5">
                   <td className="py-8 px-4 font-bold italic">Tempo</td>
                   <td className="py-8 px-4 opacity-40">Horas no shopping</td>
-                  <td className="py-8 px-4 font-black text-[var(--gold)]">3 minutos no quiz</td>
+                  <td className="py-8 px-4 font-black text-[var(--gold)]">5 minutos no quiz</td>
                 </tr>
                 <tr className="border-b border-[var(--teal)]/5">
                   <td className="py-8 px-4 font-bold italic">Diferente?</td>

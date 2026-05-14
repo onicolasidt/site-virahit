@@ -193,12 +193,6 @@ export function Quiz({ onFinishQuiz, initialStep = 1 }: QuizProps) {
           audioCampoB: Array.isArray(parsed.audioCampoB) ? parsed.audioCampoB : [],
           audioCampoCOutro: Array.isArray(parsed.audioCampoCOutro) ? parsed.audioCampoCOutro : [],
         });
-
-        // Restaurar step salvo
-        const savedStep = localStorage.getItem('virahit_quiz_step');
-        if (savedStep && ['2', '3'].includes(savedStep)) {
-          setStep(Number(savedStep));
-        }
         
         setTimeout(() => {
           setShowDraftToast(true);
@@ -216,15 +210,13 @@ export function Quiz({ onFinishQuiz, initialStep = 1 }: QuizProps) {
   useEffect(() => {
     const timeout = setTimeout(() => {
       localStorage.setItem('virahit_quiz_draft', JSON.stringify(data));
-      localStorage.setItem('virahit_quiz_step', String(step));
     }, 3000);
     return () => clearTimeout(timeout);
-  }, [data, step]);
+  }, [data]);
 
   const autoSaveNow = (newData: QuizData) => {
     setData(newData);
     localStorage.setItem('virahit_quiz_draft', JSON.stringify(newData));
-    localStorage.setItem('virahit_quiz_step', String(step));
   };
 
   const handleClearDraft = () => {
@@ -236,7 +228,7 @@ export function Quiz({ onFinishQuiz, initialStep = 1 }: QuizProps) {
 
   const selectedVinculoObj = VINCULOS.find(v => v.label === data.vinculo);
   const proofText = selectedVinculoObj?.proof || null;
-  const isNameValid = data.nome.trim().length >= 2;
+  const isNameValid = data.nome.length >= 2 || (data.audioNome && data.audioNome.length > 0);
 
   const simulateRecording = async (field: 'audioNome' | 'audioCampoA' | 'audioCampoB' | 'audioCampoCOutro') => {
     try {
@@ -313,7 +305,9 @@ export function Quiz({ onFinishQuiz, initialStep = 1 }: QuizProps) {
               <span className="material-symbols-outlined">arrow_back</span>
             </button>
           )}
-          <img src="/quiz/logo-virahit.svg" alt="ViraHit.ai" className="h-7 w-auto" />
+          <a href="https://virahit.ai" title="Voltar para o site">
+            <img src="/quiz/logo-virahit.svg" alt="ViraHit.ai" className="h-7 w-auto" />
+          </a>
         </div>
         <div className="flex items-center gap-4">
           <button onClick={handleClearDraft} className="text-[var(--teal-light)] flex items-center gap-1 text-[10px] sm:text-xs font-bold uppercase tracking-widest opacity-60 hover:opacity-100 transition-opacity" title="Começar do zero">
@@ -376,10 +370,53 @@ export function Quiz({ onFinishQuiz, initialStep = 1 }: QuizProps) {
                   value={data.nome}
                   onChange={(e) => setData({ ...data, nome: e.target.value })}
                   placeholder="Nome (Ex: João)"
-                  className="w-full outline-none bg-white border border-[var(--teal)]/20 p-4 rounded-sm text-[var(--teal)] focus:border-transparent focus:ring-2 focus:ring-[var(--gold)] transition-all"
+                  className="w-full outline-none bg-white border border-[var(--teal)]/20 p-4 rounded-sm text-[var(--teal)] focus:border-transparent focus:ring-2 focus:ring-[var(--gold)] transition-all pr-12"
                 />
+                <button 
+                  onClick={() => simulateRecording('audioNome')}
+                  className={`absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full flex items-center justify-center transition-all ${isRecordingFor === 'audioNome' ? 'bg-red-500 text-white animate-pulse' : 'bg-[var(--teal)]/5 text-[var(--teal)] hover:bg-[var(--teal)]/10'}`}
+                  title="Falar o nome"
+                >
+                  <span className="material-symbols-outlined text-sm">mic</span>
+                </button>
               </div>
               <p className="text-sm sm:text-base text-[var(--teal-light)] mt-2">O nome vai aparecer na letra da música.</p>
+              
+              <div className="flex flex-col gap-2 mt-3">
+                {data.audioNome.map((audioId, idx) => (
+                  <div key={audioId} className="flex items-center gap-3 bg-[var(--teal)]/5 p-3 rounded-sm border border-[var(--teal)]/10 animate-in fade-in">
+                    <button onClick={() => playAudio(audioId)} className="w-8 h-8 rounded-full bg-[var(--gold)] text-white flex items-center justify-center shrink-0 shadow-md transition-transform active:scale-95">
+                      <span className="material-symbols-outlined text-sm pt-[2px] pr-[1px]">play_arrow</span>
+                    </button>
+                    <div className="flex-1">
+                      <div className="relative w-full h-3 flex items-center cursor-pointer">
+                        <div className="absolute w-full h-1 bg-[var(--teal)]/20 rounded-full"></div>
+                        <div className="absolute w-0 h-1 bg-[var(--teal)] rounded-full"></div>
+                        <div className="absolute left-0 w-3 h-3 bg-[var(--teal)] rounded-full -ml-1.5 shadow"></div>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-bold text-[var(--teal)]">Áudio salvo</span>
+                    <button onClick={() => removeAudio('audioNome', audioId)} className="text-red-500 hover:text-red-700 ml-1 transition-transform active:scale-95" title="Excluir gravação">
+                      <span className="material-symbols-outlined text-sm">delete</span>
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {isRecordingFor === 'audioNome' && (
+                <div className="flex items-center gap-3 bg-red-50 p-3 rounded-sm border border-red-100 mt-3 animate-in fade-in">
+                  <div className="w-8 h-8 rounded-full bg-red-500 text-white flex items-center justify-center shrink-0 motion-safe:animate-pulse">
+                    <span className="material-symbols-outlined text-sm">mic</span>
+                  </div>
+                  <div className="flex-1">
+                    <span className="text-xs font-bold text-red-600 block leading-none mb-1">Ouvindo...</span>
+                    <span className="text-[10px] text-red-500 block leading-tight">Quando terminar, toque no botão</span>
+                  </div>
+                  <button onClick={() => stopRecording('audioNome')} className="px-3 py-1.5 rounded-full bg-red-600 text-white flex items-center justify-center gap-1 shrink-0 shadow-md transition-transform active:scale-95 font-bold text-[10px] sm:text-xs uppercase tracking-wider">
+                    <span className="material-symbols-outlined text-sm">stop</span> Parar
+                  </button>
+                </div>
+              )}
               
               {data.nome.length >= 2 && (
                 <div className="mt-4 animate-in fade-in duration-200">
@@ -525,8 +562,8 @@ export function Quiz({ onFinishQuiz, initialStep = 1 }: QuizProps) {
                 }}
                 maxLength={1000}
                 rows={5}
-                placeholder="Escreve como se fosse contar pra um amigo..."
-                className="w-full outline-none bg-white border border-[var(--teal)]/20 p-3 rounded-sm text-[var(--teal)] focus:border-transparent focus:ring-2 focus:ring-[var(--gold)] transition-all resize-none overflow-hidden mb-2 placeholder:italic placeholder:text-[15px] placeholder:text-[var(--teal-light)]/40 placeholder:leading-relaxed text-base"
+                placeholder="Ex: ela criou os filhos sozinha e nunca reclamou... / ele saiu do interior, estudou e conquistou tudo... / ela nunca fez diferença entre filho de sangue e filho de criação... / a gente ficou separado anos e quando se reencontrou foi diferente..."
+                className="w-full outline-none bg-white border border-[var(--teal)]/20 p-3 rounded-sm text-[var(--teal)] focus:border-transparent focus:ring-2 focus:ring-[var(--gold)] transition-all resize-none overflow-hidden mb-2 placeholder:italic placeholder:text-[15px] placeholder:text-[var(--teal-light)]/70 placeholder:leading-relaxed text-base"
               />
 
               <div className="flex flex-col gap-2 mb-3">
@@ -600,8 +637,8 @@ export function Quiz({ onFinishQuiz, initialStep = 1 }: QuizProps) {
                 }}
                 maxLength={1000}
                 rows={5}
-                placeholder="Uma frase, um apelido, um dia específico..."
-                className="w-full outline-none bg-white border border-[var(--teal)]/20 p-3 rounded-sm text-[var(--teal)] focus:border-transparent focus:ring-2 focus:ring-[var(--gold)] transition-all resize-none overflow-hidden mb-2 placeholder:italic placeholder:text-[15px] placeholder:text-[var(--teal-light)]/40 placeholder:leading-relaxed text-base"
+                placeholder="Ex: ela sempre dizia 'Deus vai prover'... / o apelido carinhoso que só a gente usa... / quando ela ficou do meu lado quando tudo deu errado... / o dia que ele abriu mão de tudo por amor à família..."
+                className="w-full outline-none bg-white border border-[var(--teal)]/20 p-3 rounded-sm text-[var(--teal)] focus:border-transparent focus:ring-2 focus:ring-[var(--gold)] transition-all resize-none overflow-hidden mb-2 placeholder:italic placeholder:text-[15px] placeholder:text-[var(--teal-light)]/70 placeholder:leading-relaxed text-base"
               />
 
               <div className="flex flex-col gap-2 mb-3">
@@ -791,7 +828,6 @@ export function Quiz({ onFinishQuiz, initialStep = 1 }: QuizProps) {
                     onClick={() => {
                       const _audioBlobs = JSON.parse(localStorage.getItem('virahit_audio_blobs') || '{}');
                       sessionStorage.setItem('virahit_quiz_data', JSON.stringify({...data, _audioBlobs}));
-                      localStorage.removeItem('virahit_quiz_step');
                       onFinishQuiz();
                     }}
                     className="text-[var(--teal-light)] text-sm sm:text-base transition-opacity hover:opacity-70 font-medium"
@@ -806,7 +842,6 @@ export function Quiz({ onFinishQuiz, initialStep = 1 }: QuizProps) {
                   onClick={() => {
                     const _audioBlobs = JSON.parse(localStorage.getItem('virahit_audio_blobs') || '{}');
                     sessionStorage.setItem('virahit_quiz_data', JSON.stringify({...data, _audioBlobs}));
-                    localStorage.removeItem('virahit_quiz_step');
                     onFinishQuiz();
                   }}
                   className="group w-full py-5 bg-[var(--gold)] text-white heading-font text-[19px] rounded-sm flex items-center justify-center gap-3 shadow-xl transition-transform active:scale-95"
