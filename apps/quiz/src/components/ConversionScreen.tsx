@@ -175,8 +175,12 @@ newErrors.email = 'Digite um e-mail válido';
       localStorage.removeItem('virahit_quiz_draft');
       localStorage.removeItem('virahit_audio_blobs');
 
-      // Escrever pedidoId na URL — habilita recuperação de carrinho e retorno pelo link
-      window.history.replaceState(null, '', '/quiz/?pedido=' + pedidoRef.id);
+      // Código visual curto: VH- + primeiros 6 chars do ID (ex: VH-9avDFo)
+      const codigoCurto = 'VH-' + pedidoRef.id.slice(0, 6);
+      localStorage.setItem('codigoPedido', codigoCurto);
+
+      // Escrever código curto na URL — mais legível, menos intimidador
+      window.history.replaceState(null, '', '/quiz/?pedido=' + codigoCurto);
 
       setShowToast(false);
       onGoToCheckout();

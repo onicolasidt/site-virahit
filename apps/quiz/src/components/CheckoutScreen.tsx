@@ -424,7 +424,8 @@ import { doc, onSnapshot, getDoc } from 'firebase/firestore';
 function getWhatsAppUrl(session: SessionData) {
   const nomeFormatado = session.nome ? session.nome.charAt(0).toUpperCase() + session.nome.slice(1).toLowerCase() : 'a pessoa';
   const aO = session.generoDestinatario === 'F' ? 'a' : 'o';
-  const text = `Oi Mônica! Acabei de pagar a música d${aO} ${nomeFormatado}. Quero acompanhar meu pedido: ${session.idPedido || 'sem-id'}`;
+  const codigoCurtoWpp = localStorage.getItem('codigoPedido') || (session.idPedido ? 'VH-' + session.idPedido.slice(0, 6) : 'sem-id');
+  const text = `Oi Mônica! Acabei de pagar a música d${aO} ${nomeFormatado}. Pedido: ${codigoCurtoWpp}`;
   return `https://wa.me/5511926681180?text=${encodeURIComponent(text)}`;
 }
 
@@ -461,7 +462,12 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
       const urlPedidoId = params.get('pedido');
 
       if (urlPedidoId) {
-        const data = await buscarPedido(urlPedidoId);
+        // Código curto (VH-XXXXXX) — buscar o ID real no localStorage
+        const idParaBuscar = urlPedidoId.startsWith('VH-')
+          ? (localStorage.getItem('idPedido') || urlPedidoId)
+          : urlPedidoId;
+
+        const data = await buscarPedido(idParaBuscar);
         if (data) {
           // Mapear campos Firestore (estilo/voz/genero) para SessionData (estiloMusical/vozMusical/generoDestinatario)
           const p = data as any;
@@ -473,7 +479,7 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
             compradorNome: p.compradorNome || '',
             compradorWhatsApp: p.compradorWhatsApp || '',
             compradorEmail: p.compradorEmail || '',
-            idPedido: urlPedidoId,
+            idPedido: idParaBuscar,
             pixQRCodeUrl: p.pixQRCodeUrl || '',
             pixCopiaCola: p.pixCopiaCola || '',
             dataEntregaGarantida: p.dataEntregaGarantida || '',
@@ -832,7 +838,8 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
   };
 
   const handleCopyLink = async () => {
-    const url = `${window.location.origin}/quiz/?pedido=${session.idPedido}`;
+    const codigoCurto = localStorage.getItem('codigoPedido') || ('VH-' + session.idPedido.slice(0, 6));
+    const url = `${window.location.origin}/quiz/?pedido=${codigoCurto}`;
     try {
       await navigator.clipboard.writeText(url);
     } catch {
