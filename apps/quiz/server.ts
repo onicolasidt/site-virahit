@@ -121,13 +121,19 @@ app.post("/api/pix", async (req: any, res: any) => {
       return res.status(400).json({ error: "pedidoId é obrigatório" });
     }
 
+    const PEDIDOS_INVALIDOS = ['demo-pedido', 'test', 'demo', 'undefined', 'null'];
+    if (PEDIDOS_INVALIDOS.includes(pedidoId)) {
+      log('WARN', 'VALIDATION', `PIX: pedidoId inválido/fantasma bloqueado: ${pedidoId}`, { requestId });
+      return res.status(400).json({ error: "pedidoId inválido" });
+    }
+
     if (!WOOVI_APP_ID) {
       log('ERROR', 'PIX', 'WOOVI_APP_ID não configurado', { requestId });
       return res.status(500).json({ error: "WOOVI_APP_ID não configurado." });
     }
 
-    // Extrair dados do cliente — aceita tanto session (backward compat) quanto campos diretos
-    const clienteNome = nome || session?.nome || 'Cliente ViraHit';
+    // Extrair dados do cliente — compradorNome tem prioridade sobre nome do homenageado
+    const clienteNome = nome || session?.compradorNome || session?.nome || 'Cliente ViraHit';
     const clienteWhatsApp = compradorWhatsApp || session?.compradorWhatsApp || session?.whatsapp || "5511999999999";
 
     log('INFO', 'PIX', `Criando cobrança PIX para pedido ${pedidoId}`, {
@@ -135,29 +141,97 @@ app.post("/api/pix", async (req: any, res: any) => {
       meta: { pedidoId, nome: clienteNome }
     });
 
-    const response = await fetch("https://api.woovi.com/api/v1/charge", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": WOOVI_APP_ID },
-      body: JSON.stringify({
-        correlationID: pedidoId,
-        value: 100,
-        comment: `ViraHit - Música ${clienteNome}`,
-        customer: {
-          name: clienteNome,
-          email: `${pedidoId}@virahit.com`,
-          phone: clienteWhatsApp
+    // Verificar se já existe cobrança ativa para este pedido (evita duplicata de correlationID)
+    // NOTA: Woovi retorna 404 para charges EXPIRADOS no GET, mas 400 "Já existe" no POST.
+    // Por isso: se GET = 404, ainda podemos ter conflito. O fix é usar correlationID com sufixo
+    // de timestamp quando a tentativa de POST retornar "Já existe" (cobrança expirada).
+    let correlationIDUsado = pedidoId;
+
+    try {
+      const checkController = new AbortController();
+      const checkTimeout = setTimeout(() => checkController.abort(), 10000);
+      const existingRes = await fetch(`https://api.woovi.com/api/v1/charge/correlationID/${pedidoId}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json', 'Authorization': WOOVI_APP_ID },
+        signal: checkController.signal,
+      });
+      clearTimeout(checkTimeout);
+      if (existingRes.ok) {
+        const existingData = await existingRes.json();
+        const existingCharge = existingData.charge;
+        if (existingCharge && existingCharge.brCode && existingCharge.status !== 'COMPLETED') {
+          log('INFO', 'PIX', `Cobrança PIX já existe para ${pedidoId} — reutilizando`, {
+            requestId, meta: { pedidoId, correlationID: existingCharge.correlationID, status: existingCharge.status }
+          });
+          return res.json({ success: true, charge: existingCharge });
         }
-      })
-    });
+      }
+    } catch (checkErr: any) {
+      // Se a verificação falhar (timeout, rede), seguimos para criar normalmente
+      log('WARN', 'PIX', `Falha ao verificar cobrança existente para ${pedidoId} — seguindo com criação`, {
+        requestId, error: errorPayload(checkErr)
+      });
+    }
+
+    // Função auxiliar para criar uma cobrança PIX com o correlationID fornecido
+    async function criarCobrancaWoovi(corrID: string) {
+      const pixController = new AbortController();
+      const pixTimeout = setTimeout(() => pixController.abort(), 10000);
+      const r = await fetch("https://api.woovi.com/api/v1/charge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": WOOVI_APP_ID },
+        body: JSON.stringify({
+          correlationID: corrID,
+          value: 100,
+          expiresIn: 1800, // 30 minutos
+          comment: `ViraHit - Música ${clienteNome}`,
+          customer: {
+            name: clienteNome,
+            email: `${pedidoId}@virahit.com`,
+            phone: clienteWhatsApp
+          }
+        }),
+        signal: pixController.signal,
+      });
+      clearTimeout(pixTimeout);
+      return r;
+    }
+
+    let response = await criarCobrancaWoovi(correlationIDUsado);
+
+    // Se a Woovi retornar 400 com "Já existe" (cobrança expirada — o GET retorna 404 para charges
+    // expirados mas o POST bloqueia o reuso do correlationID), criar com sufixo de timestamp.
+    if (!response.ok) {
+      let errorBody: any = {};
+      try { errorBody = await response.json(); } catch {}
+      const errMsg: string = (errorBody?.error || errorBody?.message || '').toLowerCase();
+      const isDuplicateError = errMsg.includes('já existe') || errMsg.includes('ja existe') ||
+                               errMsg.includes('already exists') || errMsg.includes('duplicate');
+
+      if (response.status === 400 && isDuplicateError) {
+        // correlationID antigo expirou — criar novo com sufixo único
+        correlationIDUsado = `${pedidoId}-${Date.now()}`;
+        log('WARN', 'PIX', `correlationID ${pedidoId} expirado na Woovi — retentando com ${correlationIDUsado}`, { requestId });
+        response = await criarCobrancaWoovi(correlationIDUsado);
+      } else {
+        log('ERROR', 'PIX', `Woovi retornou status ${response.status}`, {
+          requestId,
+          statusCode: response.status,
+          payload: sanitize(errorBody),
+          meta: { pedidoId }
+        });
+        return res.status(response.status).json({ error: "Erro ao gerar PIX" });
+      }
+    }
 
     const data = await response.json();
 
     if (!response.ok) {
-      log('ERROR', 'PIX', `Woovi retornou status ${response.status}`, {
+      log('ERROR', 'PIX', `Woovi retornou status ${response.status} na segunda tentativa`, {
         requestId,
         statusCode: response.status,
         payload: sanitize(data),
-        meta: { pedidoId }
+        meta: { pedidoId, correlationIDUsado }
       });
       return res.status(response.status).json({ error: "Erro ao gerar PIX" });
     }
@@ -169,6 +243,7 @@ app.post("/api/pix", async (req: any, res: any) => {
       await setDoc(doc(db, "pedidos", pedidoId), {
         pixCopiaCola: charge.brCode,
         pixQRCodeUrl: charge.qrCodeImage || charge.paymentLinkUrl,
+        pixCriadoEm: new Date().toISOString(),
       }, { merge: true });
       log('INFO', 'FIREBASE', `Pedido ${pedidoId} atualizado com dados PIX`, { requestId, meta: { pedidoId } });
     } catch (fbErr: any) {
@@ -329,11 +404,11 @@ app.post("/api/webhook/stripe", async (req: any, res: any) => {
     const signature = req.headers['stripe-signature'];
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
-    if (webhookSecret && signature) {
-      event = stripe.webhooks.constructEvent(req.body, signature, webhookSecret);
-    } else {
-      event = JSON.parse(req.body.toString());
+    if (!webhookSecret || !signature) {
+      log('ERROR', 'WEBHOOK', 'STRIPE_WEBHOOK_SECRET nao configurado ou assinatura ausente — rejeitando webhook', { requestId });
+      return res.status(400).send('Webhook Error: missing secret or signature');
     }
+    event = stripe.webhooks.constructEvent(req.body, signature, webhookSecret);
 
     log('INFO', 'WEBHOOK', `Webhook Stripe recebido: ${event.type}`, {
       requestId,
@@ -437,7 +512,7 @@ app.get("/api/payment-events/:pedidoId", async (req: any, res: any) => {
 });
 
 // ==========================================
-// POST /api/log-erro — Frontend error logging → Baserow
+// POST /api/log-erro — Frontend error logging → Firestore (Admin REST API, bypasses rules)
 // ==========================================
 app.post("/api/log-erro", async (req: any, res: any) => {
   const requestId = req._requestId ?? generateRequestId();
@@ -462,43 +537,34 @@ app.post("/api/log-erro", async (req: any, res: any) => {
       error: { name: erro_tipo || 'UnknownError', message: erro_mensagem, stack: erro_stack },
     });
 
-    // 2. Enviar para Baserow (async, fire-and-forget — nunca bloqueia)
-    const BASEROW_TOKEN = "cWMKvF1vPQUFlKZsFV3F1raIQ8s1bWrj";
-    const BASEROW_TABLE = process.env.BASEROW_ERROS_TABLE_ID || "";
-    const BASEROW_URL = BASEROW_TABLE
-      ? `https://api.baserow.io/api/database/rows/table/${BASEROW_TABLE}/?user_field_names=true`
-      : "";
-
-    if (BASEROW_URL) {
-      (async () => {
+    // 2. Enviar para Firestore collection 'frontend_errors' via Python Admin SDK (bypasses rules)
+    (async () => {
+      try {
+        const { exec } = await import('child_process');
         try {
-          const baserowPayload: Record<string, any> = {
-            timestamp: new Date().toISOString(),
-            pagina: pagina || '',
-            etapa: etapa || '',
-            erro_tipo: erro_tipo || '',
-            erro_mensagem: erro_mensagem || '',
-            erro_stack: erro_stack || '',
-            user_agent: user_agent || '',
-            pedido_id: pedido_id || '',
-            comprador_nome: comprador_nome || '',
-            comprador_whatsapp: comprador_whatsapp || '',
-            comprador_email: comprador_email || '',
-          };
-          await fetch(BASEROW_URL, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Token ${BASEROW_TOKEN}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(baserowPayload),
+          const scriptPath = '/home/hermes_general/empresa/funil-web/quiz-virahit-v2/scripts/log-frontend-error.py';
+          const TABLE_ID = process.env.BASEROW_ERROS_TABLE_ID || '974283';
+          const proc = exec(`BASEROW_ERROS_TABLE_ID=${TABLE_ID} python3 ${scriptPath}`);
+          proc.stdin!.write(JSON.stringify({
+            pagina, etapa, erro_tipo, erro_mensagem, erro_stack,
+            user_agent, pedido_id, comprador_nome, comprador_whatsapp, comprador_email,
+          }));
+          proc.stdin!.end();
+          proc.stdout?.on('data', (chunk: Buffer) => {
+            const out = chunk.toString().trim();
+            if (out.startsWith('OK:')) {
+              const docId = out.split(':')[1];
+              log('INFO', 'FRONTEND_ERROR_LOG', `Erro salvo em frontend_errors/${docId}`, { requestId });
+            }
           });
-          log('INFO', 'FRONTEND_ERROR_LOG', `Erro enviado para Baserow table ${BASEROW_TABLE}`, { requestId, meta: { pedido_id, pagina } });
-        } catch (bErr: any) {
-          log('WARN', 'FRONTEND_ERROR_LOG', `Falha ao enviar erro para Baserow: ${bErr.message}`, { requestId });
-        }
-      })();
-    }
+          proc.stderr?.on('data', (chunk: Buffer) => {
+            log('WARN', 'FRONTEND_ERROR_LOG', `Python stderr: ${chunk.toString().trim().slice(0, 300)}`, { requestId });
+          });
+        } catch {}
+      } catch (fbErr: any) {
+        log('WARN', 'FRONTEND_ERROR_LOG', `Falha ao salvar erro: ${fbErr.message}`, { requestId });
+      }
+    })();
 
     res.json({ ok: true });
   } catch (err: any) {
