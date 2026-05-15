@@ -486,9 +486,23 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
         if (data) {
           const p = data as any;
 
-          // Pedido já pago? Redirecionar para quiz
+          // Pedido já pago? Mostrar tela de obrigado
           if (p.status === 'pago') {
-            window.location.href = window.location.pathname;
+            setSession({
+              nome: p.nome || '',
+              generoDestinatario: p.genero === 'F' ? 'F' : 'M',
+              estiloMusical: p.estilo || p.estiloMusical || '',
+              vozMusical: p.voz || p.vozMusical || '',
+              compradorNome: p.compradorNome || '',
+              compradorWhatsApp: p.compradorWhatsApp || '',
+              compradorEmail: p.compradorEmail || '',
+              idPedido: idParaBuscar,
+              pixQRCodeUrl: p.pixQRCodeUrl || '',
+              pixCopiaCola: p.pixCopiaCola || '',
+              dataEntregaGarantida: p.dataEntregaGarantida || '',
+            });
+            setPageState('confirmed');
+            setRedirectCountdown(null); // não redireciona automaticamente
             return;
           }
 
@@ -943,13 +957,17 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
 
   if (pageState === 'confirmed') {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#F4EEDC] px-6">
+      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#F4EEDC] px-6">
         <style>{`
           @keyframes scale-in { 0%{transform:scale(0);opacity:0} 70%{transform:scale(1.1);opacity:1} 100%{transform:scale(1);opacity:1} }
           @keyframes fade-in { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
           .animate-scale-in{animation:scale-in 0.5s ease-out forwards}
           .animate-fade-in{animation:fade-in 0.4s ease-out forwards}
         `}</style>
+        {/* Logo ViraHit no topo */}
+        <div className="absolute top-6 left-0 right-0 flex justify-center">
+          <img src="/nova-logo-virahit.svg" alt="ViraHit" className="h-8 w-auto" />
+        </div>
         <div className="animate-fade-in flex flex-col items-center gap-6 text-center max-w-sm w-full">
           <div className="animate-scale-in flex items-center justify-center w-24 h-24 rounded-full bg-[#128C7E]">
             <CheckCircle className="w-14 h-14 text-white" strokeWidth={2} />
@@ -975,10 +993,20 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
               <p className="text-[#2C5D63] text-[14px] font-bold text-center leading-tight">
                 Toque no botão acima e me envie um "Oi" para acompanhar a criação.
               </p>
-              <p className="text-[#2C5D63]/60 text-[12px] font-medium mt-1">
-                Aviso: Redirecionando automaticamente em {redirectCountdown}s...
-              </p>
+              {redirectCountdown !== null && (
+                <p className="text-[#2C5D63]/60 text-[12px] font-medium mt-1">
+                  Aviso: Redirecionando automaticamente em {redirectCountdown}s...
+                </p>
+              )}
             </div>
+            {/* Botão voltar para página inicial */}
+            <a 
+              href="/"
+              className="flex items-center justify-center gap-2 px-6 w-full max-w-[340px] h-[48px] rounded-[10px] bg-white border border-[#2C5D63]/20 text-[#2C5D63] uppercase tracking-wide text-[13px] transition-all hover:bg-[#2C5D63]/5 active:scale-[0.98]"
+              style={{ fontFamily: 'Open Sans, sans-serif', fontWeight: 800, textDecoration: 'none' }}
+            >
+              Voltar para página inicial
+            </a>
           </div>
         </div>
       </div>
