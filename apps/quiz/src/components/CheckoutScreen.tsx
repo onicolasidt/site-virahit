@@ -450,6 +450,7 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
   const [pixGenerating, setPixGenerating] = useState(false); // false — handleRegeneratePix define true quando inicia
   const [pixError, setPixError] = useState<string | null>(null);
   const [pixRequested, setPixRequested] = useState(false);
+  const [dataLoaded, setDataLoaded] = useState(false); // impede EAGER PIX de disparar antes do loadData() terminar
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const redirectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -505,6 +506,7 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
           }
           // PIX já existe no Firestore — não precisa gerar, para o loading
           if (p.pixCopiaCola) setPixGenerating(false);
+          setDataLoaded(true);
           return;
         }
       }
@@ -583,6 +585,7 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
 
             // PIX já existe — não precisa gerar, para o loading
             if (p.pixCopiaCola) setPixGenerating(false);
+            setDataLoaded(true);
             return;
           }
         } catch { /* se falhar a busca, continua normalmente */ }
@@ -623,6 +626,7 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
 
       // Se já tem PIX no localStorage, para o loading
       if (newSession.pixCopiaCola) setPixGenerating(false);
+      setDataLoaded(true);
     }
 
     loadData();
@@ -632,6 +636,7 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
   // (não espera o usuário clicar na aba PIX). Menos cliques = mais conversão.
   useEffect(() => {
     if (
+      dataLoaded &&
       session.idPedido &&
       session.idPedido !== 'demo-pedido' &&
       !session.pixCopiaCola &&
@@ -641,7 +646,7 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
       handleRegeneratePix();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session.idPedido, session.pixCopiaCola, pixState, pageState]);
+  }, [session.idPedido, session.pixCopiaCola, pixState, pageState, dataLoaded]);
 
   const fetchClientSecret = useCallback(async (forcePedidoId?: string) => {
     const id = forcePedidoId || session.idPedido;
