@@ -31,10 +31,12 @@ export async function buscarPedidoPorCodigoCurto(codigoCurto: string) {
     console.log('[Firebase] buscarPedidoPorCodigoCurto:', codigoCurto);
     const q = query(collection(db, 'pedidos'), where('codigoCurto', '==', codigoCurto));
     const snap = await getDocs(q);
-    console.log('[Firebase] buscarPedidoPorCodigoCurto results:', snap.size, snap.docs.map(d => ({id: d.id, status: d.data().status})));
+    console.log('[Firebase] buscarPedidoPorCodigoCurto results:', snap.size, snap.docs.map(d => ({id: d.id, status: d.data().status, keys: Object.keys(d.data())})));
     if (snap.empty) return null;
     const docSnap = snap.docs[0];
-    return { idPedido: docSnap.id, ...docSnap.data() };
+    const data = { idPedido: docSnap.id, ...docSnap.data() };
+    console.log('[Firebase] buscarPedidoPorCodigoCurto returning:', { idPedido: data.idPedido, status: (data as any).status });
+    return data;
   } catch (err: any) {
     console.error('[Firebase] buscarPedidoPorCodigoCurto FAILED:', err.code, err.message);
     return null;

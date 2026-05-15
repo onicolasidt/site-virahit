@@ -485,6 +485,7 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
 
         if (data) {
           const p = data as any;
+          console.log('[Checkout] loadData found pedido:', { id: idParaBuscar, status: p.status });
 
           // Pedido já pago? Mostrar tela de obrigado
           if (p.status === 'pago') {
