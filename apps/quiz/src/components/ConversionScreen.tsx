@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, RefObject } from 'react';
 import { resolverGenero } from './Quiz';
-import { db, salvarPedido } from '../lib/firebase';
+import { db } from '../lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { AUDIO_EXEMPLOS_CONVERSAO } from '../lib/audioExemplos';
 
@@ -179,9 +179,6 @@ newErrors.email = 'Digite um e-mail válido';
       const codigoCurto = 'VH-' + pedidoRef.id.slice(0, 6);
       localStorage.setItem('codigoPedido', codigoCurto);
 
-      // Salvar codigoCurto no Firestore para busca em outros dispositivos
-      await salvarPedido(pedidoRef.id, { codigoCurto });
-
       // Escrever código curto na URL — mais legível, menos intimidador
       window.history.replaceState(null, '', '/quiz/?pedido=' + codigoCurto);
 
@@ -280,7 +277,7 @@ newErrors.email = 'Digite um e-mail válido';
             <span className="material-symbols-outlined text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>auto_awesome</span>
           </div>
           <h1 className="font-['Open_Sans'] font-extrabold text-[var(--teal)] uppercase text-[30px] sm:text-[34px] leading-[1.1] mb-5">
-            {resolverGenero('A história [DA_DO] [NOME] vai virar uma música só pra [ELA_ELE]', data.genero, data.nome)}
+            {resolverGenero('A história [DA_DO] [NOME] vai virar uma música só para [ELA_ELE]', data.genero, data.nome)}
           </h1>
           <p className="font-['Merriweather'] text-[16px] sm:text-[18px] text-[var(--teal)]/80 leading-relaxed max-w-[360px] mx-auto opacity-90">
             Daqui a pouco <strong className="text-[var(--teal)] font-bold">{resolverGenero('[ELA_ELE]', data.genero, data.nome)}</strong> vai apertar o play. E vai ouvir, pela primeira vez, uma música que só existe por causa da história de vocês.
@@ -325,7 +322,7 @@ newErrors.email = 'Digite um e-mail válido';
             </div>
 
             <p className="font-['Merriweather'] text-[13px] text-white/70 text-center italic max-w-[280px] mx-auto leading-relaxed">
-              (Essa foi feita pra outra pessoa — a {resolverGenero('música [DA_DO] [NOME]', data.genero, data.nome)} vai ser única, só com o que você escreveu)
+              (Essa foi feita para outra pessoa — a {resolverGenero('música [DA_DO] [NOME]', data.genero, data.nome)} vai ser única, só com o que você escreveu)
             </p>
           </div>
         </div>
@@ -408,9 +405,9 @@ newErrors.email = 'Digite um e-mail válido';
             */}
 
             <div className="flex flex-col items-center gap-1 mb-8 text-center px-2">
-              <span className="text-[13px] text-[var(--teal)]/50 italic font-['Merriweather']">Flores murcham em 3 dias. Chocolates somem em 5 minutos.</span>
+              <span className="text-[20px] text-[var(--teal)]/60 italic font-['Merriweather']">Flores murcham em 3 dias. Chocolates somem em 5 minutos.</span>
               <span className="font-['Open_Sans'] font-extrabold text-[22px] sm:text-[24px] leading-tight text-[var(--teal)] tracking-tight mt-1">
-                Essa música fica pra sempre
+                Essa música fica para sempre
               </span>
             </div>
 
@@ -440,7 +437,7 @@ newErrors.email = 'Digite um e-mail válido';
             `}</style>
 
             {!isValid && !isSubmitting && (
-              <p className="font-['Merriweather'] text-[13px] text-[var(--teal)]/40 text-center mt-4 italic">
+              <p className="font-['Merriweather'] text-[15px] text-[var(--teal)]/50 text-center mt-4 italic">
                 Preencha seus dados para continuar
               </p>
             )}
@@ -493,8 +490,8 @@ newErrors.email = 'Digite um e-mail válido';
             </div>
             <div className="flex flex-col items-center gap-1 mt-1">
               <span className="font-['Merriweather'] text-[14px] text-[var(--teal)]/70">Precisa de ajuda?</span>
-              <span className="font-['Merriweather'] text-[15px] text-[var(--teal)]/50">
-                A equipe ViraHit responde em até 2h
+              <span className="font-['Merriweather'] text-[15px] text-[var(--teal)]/70">
+                Nosso WhatsApp responde na hora
               </span>
             </div>
           </div>
