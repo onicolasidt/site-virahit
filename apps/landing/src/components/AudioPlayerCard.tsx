@@ -135,20 +135,22 @@ export default function AudioPlayerCard({
           )}
         </button>
 
-        {/* Barra de progresso */}
+        {/* Barra de progresso — melhoria #9: shimmer durante loading */}
         <div
-          className="flex-grow h-2 rounded-full cursor-pointer relative overflow-hidden"
-          style={{ background: '#F4EEDC' }}
+          className={`flex-grow h-2 rounded-full cursor-pointer relative overflow-hidden${isLoading ? ' audio-bar-loading' : ''}`}
+          style={isLoading ? {} : { background: '#F4EEDC' }}
           onClick={handleProgressClick}
           role="progressbar"
           aria-valuenow={progress}
           aria-valuemin={0}
           aria-valuemax={100}
         >
-          <div
-            className="absolute top-0 left-0 h-full rounded-full transition-all duration-100"
-            style={{ width: `${progress}%`, background: accentColor }}
-          />
+          {!isLoading && (
+            <div
+              className="absolute top-0 left-0 h-full rounded-full transition-all duration-100"
+              style={{ width: `${progress}%`, background: accentColor }}
+            />
+          )}
         </div>
 
         {/* Tempo */}

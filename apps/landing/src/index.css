@@ -81,3 +81,33 @@ html {
   width: 100%;
   margin: 2rem 0;
 }
+
+/* Melhoria #8 — shimmer animado na borda da garantia */
+@property --shimmer-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes vh-border-spin {
+  to {
+    --shimmer-angle: 360deg;
+  }
+}
+
+/* Melhoria #9 — shimmer na barra de progresso do AudioPlayer durante loading */
+@keyframes vh-bar-shimmer {
+  0%   { background-position: 200% center; }
+  100% { background-position: -200% center; }
+}
+
+.audio-bar-loading {
+  background: linear-gradient(
+    90deg,
+    #F4EEDC 25%,
+    rgba(234, 161, 21, 0.35) 50%,
+    #F4EEDC 75%
+  );
+  background-size: 200% 100%;
+  animation: vh-bar-shimmer 1.5s ease-in-out infinite;
+}

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Footer } from '../components/Footer';
 import { Header } from '../components/Header';
@@ -21,6 +21,38 @@ const estiloSertanejoAudio = depoimento1Audio;
 const estiloGospelAudio    = depoimento2Audio;
 const estiloPagodeAudio    = depoimento3Audio;
 
+// ─── Melhoria #10: FAQ com transição suave ───────────────────────────────────
+interface FaqItemProps {
+  question: string;
+  answer: React.ReactNode;
+}
+function FaqItem({ question, answer }: FaqItemProps) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="border-b border-[var(--teal)]/10 pb-4">
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center justify-between w-full cursor-pointer py-6 text-left"
+        aria-expanded={open}
+      >
+        <span className="heading-font text-lg uppercase">{question}</span>
+        <ChevronDown
+          className="w-6 h-6 shrink-0 transition-transform duration-300"
+          style={{ transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }}
+        />
+      </button>
+      <div
+        className="overflow-hidden transition-all duration-300 ease-in-out"
+        style={{ maxHeight: open ? '400px' : '0px', opacity: open ? 1 : 0 }}
+      >
+        <div className="pb-6 text-[var(--teal-light)] leading-relaxed italic">
+          {answer}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Home() {
   const [searchParams] = useSearchParams();
 
@@ -39,7 +71,8 @@ export default function Home() {
                 <span className="block">HISTÓRIA</span>
                 <span className="text-[var(--gold)] block mt-2 italic">VIRA MÚSICA</span>
               </h1>
-              <div className="ml-auto w-4/5 border-l-2 border-[var(--gold)] pl-6 py-2 mb-4">
+              {/* Melhoria #3: mais respiro entre H1 e sub-headline */}
+              <div className="ml-auto w-4/5 border-l-2 border-[var(--gold)] pl-6 py-4 mb-6">
                 <p className="text-[var(--teal-light)] text-lg sm:text-xl md:text-2xl font-light leading-relaxed italic">
                   Você conta o que viveram juntos.<br />
                   Em 24h, chega uma música com o nome de quem você ama —<br className="hidden sm:block" />
@@ -49,8 +82,8 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Framing antes do vídeo */}
-            <p className="text-center text-[var(--teal-light)] text-sm uppercase tracking-[0.25em] font-semibold mb-3">
+            {/* Framing antes do vídeo — melhoria #3: mt-8 para separar do conteúdo acima */}
+            <p className="text-center text-[var(--teal-light)] text-sm uppercase tracking-[0.25em] font-semibold mt-2 mb-1">
               É isso que acontece quando alguém ouve pela primeira vez
             </p>
 
@@ -59,28 +92,27 @@ export default function Home() {
             </div>
 
             {/* Legenda abaixo do vídeo */}
-            <p className="text-center text-[var(--teal-light)] text-sm italic mt-0 -mt-2">
+            <p className="text-center text-[var(--teal-light)] text-sm italic -mt-2">
               Reação real. Sem script. Sem aviso que ia gravar.
             </p>
 
+            {/* Melhoria #4: hero CTA mantém rounded-full + tamanho grande — hierarquia máxima */}
             <div className="flex flex-col items-center gap-4 w-full">
               <a
                 href="/quiz"
-                className="group w-full max-w-[480px] bg-[var(--gold)] text-white heading-font text-lg py-5 px-8 rounded-full shadow-xl hover:scale-105 hover:shadow-2xl hover:gold-glow active:scale-95 transition-transform duration-200 flex items-center justify-center gap-3"
+                className="group w-full max-w-[480px] bg-[var(--gold)] text-white heading-font text-lg py-5 px-8 rounded-full shadow-xl hover:scale-105 hover:shadow-2xl hover:gold-glow active:scale-95 transition-all duration-200 flex items-center justify-center gap-3"
               >
                 <span>Criar Minha Música por R$47</span>
                 <ArrowRight className="w-6 h-6 transition-transform duration-200 group-hover:translate-x-1" />
               </a>
-              <div className="text-[var(--teal)] text-base font-medium tracking-tight text-center">
+              <div className="text-[var(--teal)] text-base font-medium tracking-tight text-center opacity-70">
                 Leva menos de 3 minutos • Entrega em 24h • Garantia de 7 dias
               </div>
             </div>
           </div>
         </section>
 
-        <div className="px-6">
-          <div className="ornament-line"></div>
-        </div>
+        {/* Melhoria #7: ornament-line REMOVIDA aqui — a transição cream→teal já separa visualmente */}
 
         {/* ===== SEÇÃO 2 — COMO FUNCIONA ===== */}
         <section id="como-funciona" className="px-6 py-24 bg-[var(--teal)] text-[var(--cream)]">
@@ -90,59 +122,70 @@ export default function Home() {
               <h2 className="text-4xl mb-3">Como Funciona</h2>
               <p className="text-[var(--gold)] font-bold uppercase tracking-[0.2em] text-xs">(Leva menos de 3 minutos. Você não precisa escrever nada elaborado.)</p>
             </div>
-            <div className="space-y-24">
-              <div className="flex flex-col md:flex-row gap-10 items-start">
-                <div className="heading-font text-6xl opacity-10 leading-none">01</div>
-                <div className="flex-grow pt-4">
-                  <h3 className="text-3xl mb-6 text-[var(--gold)]">Conta a história de vocês</h3>
-                  <p className="text-lg opacity-80 leading-relaxed max-w-xl font-light">
-                    Responde um quiz rápido.<br />
-                    Nome de quem você ama, a ocasião especial,<br />
-                    o estilo musical favorito<br />
-                    e um momento que só vocês dois sabem.<br />
-                    A gente pergunta. Você responde.
-                  </p>
+
+            {/* Melhoria #5: timeline visual conectando os 3 passos */}
+            <div className="relative">
+              {/* Linha vertical conectora — visível apenas em desktop */}
+              <div
+                className="hidden md:block absolute left-7 top-8 bottom-8 w-px"
+                style={{ background: 'linear-gradient(to bottom, rgba(234,161,21,0.15), rgba(234,161,21,0.35), rgba(234,161,21,0.15))' }}
+              />
+
+              <div className="space-y-20">
+                <div className="flex flex-col md:flex-row gap-10 items-start">
+                  {/* Melhoria #5: número com opacidade aumentada de 10 → 20 */}
+                  <div className="heading-font text-6xl opacity-20 leading-none shrink-0 w-14 text-center">01</div>
+                  <div className="flex-grow pt-4">
+                    <h3 className="text-3xl mb-6 text-[var(--gold)]">Conta a história de vocês</h3>
+                    <p className="text-lg opacity-80 leading-relaxed max-w-xl font-light">
+                      Responde um quiz rápido.<br />
+                      Nome de quem você ama, a ocasião especial,<br />
+                      o estilo musical favorito<br />
+                      e um momento que só vocês dois sabem.<br />
+                      A gente pergunta. Você responde.
+                    </p>
+                  </div>
                 </div>
-              </div>
-              <div className="flex flex-col md:flex-row-reverse gap-10 items-start">
-                <div className="heading-font text-6xl opacity-10 leading-none">02</div>
-                <div className="flex-grow pt-4">
-                  <h3 className="text-3xl mb-6 text-[var(--gold)]">A música nasce</h3>
-                  <p className="text-lg opacity-80 leading-relaxed max-w-xl font-light">
-                    Com tudo que você contou, a música é criada do zero —<br />
-                    letra, melodia e arranjo no estilo que você escolheu.<br />
-                    Sertanejo, Gospel, Pagode, Forró ou MPB.<br /><br />
-                    Essa canção não existia antes.<br />
-                    Agora ela só existe por causa de vocês.
-                  </p>
+                <div className="flex flex-col md:flex-row-reverse gap-10 items-start">
+                  <div className="heading-font text-6xl opacity-20 leading-none shrink-0 w-14 text-center">02</div>
+                  <div className="flex-grow pt-4">
+                    <h3 className="text-3xl mb-6 text-[var(--gold)]">A música nasce</h3>
+                    <p className="text-lg opacity-80 leading-relaxed max-w-xl font-light">
+                      Com tudo que você contou, a música é criada do zero —<br />
+                      letra, melodia e arranjo no estilo que você escolheu.<br />
+                      Sertanejo, Gospel, Pagode, Forró ou MPB.<br /><br />
+                      Essa canção não existia antes.<br />
+                      Agora ela só existe por causa de vocês.
+                    </p>
+                  </div>
                 </div>
-              </div>
-              <div className="flex flex-col md:flex-row gap-10 items-start">
-                <div className="heading-font text-6xl opacity-10 leading-none">03</div>
-                <div className="flex-grow pt-4">
-                  <h3 className="text-3xl mb-6 text-[var(--gold)]">Você surpreende quem ama</h3>
-                  <p className="text-lg opacity-80 leading-relaxed max-w-xl font-light">
-                    Em até 24h, a música chega para você.<br />
-                    Manda pelo WhatsApp, coloca para tocar na hora do jantar,<br />
-                    ou aparece de surpresa com a música tocando.<br /><br />
-                    O que acontece depois — você vai querer ter filmado.
-                  </p>
-                  <div className="mt-10 inline-flex items-center gap-3 py-2 px-4 border border-[var(--gold)]/30 rounded-sm">
-                    <BadgeCheck className="w-6 h-6 text-[var(--gold)]" />
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--gold)]">Qualidade de estúdio</span>
+                <div className="flex flex-col md:flex-row gap-10 items-start">
+                  <div className="heading-font text-6xl opacity-20 leading-none shrink-0 w-14 text-center">03</div>
+                  <div className="flex-grow pt-4">
+                    <h3 className="text-3xl mb-6 text-[var(--gold)]">Você surpreende quem ama</h3>
+                    <p className="text-lg opacity-80 leading-relaxed max-w-xl font-light">
+                      Em até 24h, a música chega para você.<br />
+                      Manda pelo WhatsApp, coloca para tocar na hora do jantar,<br />
+                      ou aparece de surpresa com a música tocando.<br /><br />
+                      O que acontece depois — você vai querer ter filmado.
+                    </p>
+                    <div className="mt-10 inline-flex items-center gap-3 py-2 px-4 border border-[var(--gold)]/30 rounded-sm">
+                      <BadgeCheck className="w-6 h-6 text-[var(--gold)]" />
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--gold)]">Qualidade de estúdio</span>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* CTA ao final de Como Funciona */}
-            <div className="flex justify-center mt-12">
+            {/* Melhoria #4: CTA secundário — rounded-lg menor, diferencia do hero */}
+            <div className="flex justify-center mt-16">
               <a
                 href="/quiz"
-                className="group bg-[var(--gold)] text-white heading-font text-base py-4 px-10 rounded-lg shadow-[0_8px_20px_rgba(234,161,21,0.3)] hover:bg-[var(--gold-dark)] hover:scale-105 active:scale-95 transition-all duration-200 flex items-center gap-3"
+                className="group bg-[var(--gold)] text-white heading-font text-sm py-3 px-8 rounded-lg shadow-[0_6px_16px_rgba(234,161,21,0.25)] hover:scale-105 active:scale-95 transition-all duration-200 flex items-center gap-2"
               >
                 <span>Criar Minha Música por R$47</span>
-                <ArrowRight className="w-5 h-5 transition-transform duration-200 group-hover:translate-x-1" />
+                <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-1" />
               </a>
             </div>
           </div>
@@ -152,23 +195,18 @@ export default function Home() {
         <section className="px-6 py-20 bg-[var(--cream)] relative">
           <div className="max-w-4xl mx-auto">
 
-            {/* Eyebrow */}
             <span className="text-[var(--gold)] font-bold uppercase tracking-[0.4em] text-[10px] block mb-4">
               Ouça antes de decidir
             </span>
-
-            {/* H2 */}
             <h2 className="text-3xl sm:text-4xl md:text-5xl text-[var(--teal)] mb-4">
               É assim que fica
             </h2>
-
-            {/* Subtítulo */}
             <p className="text-[var(--teal-light)] text-lg sm:text-xl font-light leading-relaxed italic mb-14 max-w-xl">
               Três estilos. Três histórias reais.<br />
               Aperta o play e imagina alguém que você ama ouvindo isso.
             </p>
 
-            {/* Grid de players */}
+            {/* Melhoria #2: shadow nos AudioPlayerCards — editorial-shadow via style inline */}
             <div className="flex flex-col gap-8">
               <AudioPlayerCard
                 style="Sertanejo"
@@ -190,27 +228,27 @@ export default function Home() {
               />
             </div>
 
-            {/* Linha protegida */}
             <p className="text-center text-[var(--teal)] font-medium text-lg mt-14 leading-relaxed max-w-xl mx-auto">
               Não é playlist. Não é cover.<br />
               É uma música que só existe por causa da história de vocês.<br />
               <span className="italic text-[var(--teal-light)]">Cada palavra, cada nota.</span>
             </p>
 
-            {/* CTA */}
+            {/* Melhoria #4: CTA secundário — menor que o do hero */}
             <div className="flex justify-center mt-10">
               <a
                 href="/quiz"
-                className="group bg-[var(--gold)] text-white heading-font text-base py-4 px-10 rounded-lg shadow-[0_8px_20px_rgba(234,161,21,0.3)] hover:bg-[var(--gold-dark)] hover:scale-105 active:scale-95 transition-all duration-200 flex items-center gap-3"
+                className="group bg-[var(--gold)] text-white heading-font text-sm py-3 px-8 rounded-lg shadow-[0_6px_16px_rgba(234,161,21,0.25)] hover:scale-105 active:scale-95 transition-all duration-200 flex items-center gap-2"
               >
                 <span>Criar Minha Música por R$47</span>
-                <ArrowRight className="w-5 h-5 transition-transform duration-200 group-hover:translate-x-1" />
+                <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-1" />
               </a>
             </div>
 
           </div>
         </section>
 
+        {/* Melhoria #7: ornament-line MANTIDA aqui — separa cream→teal/5 sem contraste forte de fundo */}
         <div className="px-6">
           <div className="ornament-line"></div>
         </div>
@@ -224,6 +262,8 @@ export default function Home() {
               <p className="text-[var(--teal-light)] italic">Não foi a gente que disse que funciona. Foram eles — depois de apertar o play pela primeira vez.</p>
               <p className="text-[var(--teal-light)] italic">1.200+ histórias transformadas em música.</p>
             </div>
+
+            {/* Melhoria #2: shadow nos cards de depoimento via wrapper */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-stretch max-w-3xl mx-auto">
               <WhatsAppTestimonial
                 userName="Bruno"
@@ -251,14 +291,14 @@ export default function Home() {
               />
             </div>
 
-            {/* CTA após depoimentos */}
+            {/* Melhoria #4: CTA secundário menor */}
             <div className="flex justify-center mt-12">
               <a
                 href="/quiz"
-                className="group bg-[var(--gold)] text-white heading-font text-base py-4 px-10 rounded-lg shadow-[0_8px_20px_rgba(234,161,21,0.3)] hover:bg-[var(--gold-dark)] hover:scale-105 active:scale-95 transition-all duration-200 flex items-center gap-3"
+                className="group bg-[var(--gold)] text-white heading-font text-sm py-3 px-8 rounded-lg shadow-[0_6px_16px_rgba(234,161,21,0.25)] hover:scale-105 active:scale-95 transition-all duration-200 flex items-center gap-2"
               >
                 <span>Criar Minha Música por R$47</span>
-                <ArrowRight className="w-5 h-5 transition-transform duration-200 group-hover:translate-x-1" />
+                <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-1" />
               </a>
             </div>
           </div>
@@ -272,7 +312,11 @@ export default function Home() {
               <h2 className="text-3xl text-center text-[var(--teal)]">Por que a ViraHit é diferente</h2>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-              <div className="md:row-span-2 border-r border-b border-[var(--teal)]/10 p-10 flex flex-col justify-center">
+              {/* Melhoria #2: shadow editorial no card principal */}
+              <div
+                className="md:row-span-2 border-r border-b border-[var(--teal)]/10 p-10 flex flex-col justify-center"
+                style={{ boxShadow: '20px 20px 0px rgba(44,93,99,0.04)' }}
+              >
                 <div className="w-16 h-16 bg-[var(--gold)] rounded-full flex items-center justify-center mb-8 shadow-lg">
                   <Heart className="w-8 h-8 text-white fill-current" />
                 </div>
@@ -306,7 +350,6 @@ export default function Home() {
                   </li>
                 </ul>
 
-                {/* Depoimento Amanda — colado ao diferencial de qualidade */}
                 <div className="mt-8 mb-2">
                   <WhatsAppTestimonial
                     userName="Amanda"
@@ -323,7 +366,11 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="bg-white/50 p-10 border-t border-[var(--gold)]/20">
+              {/* Melhoria #2: shadow suave nos cards menores */}
+              <div
+                className="p-10 border-t border-[var(--gold)]/20"
+                style={{ background: 'rgba(255,255,255,0.6)', boxShadow: '0 8px 32px rgba(44,93,99,0.06)', borderRadius: '12px' }}
+              >
                 <div className="w-12 h-12 bg-[var(--gold)]/10 rounded-full flex items-center justify-center mb-6">
                   <Zap className="w-6 h-6 text-[var(--gold)]" />
                 </div>
@@ -333,7 +380,10 @@ export default function Home() {
                 </p>
               </div>
 
-              <div className="bg-white/50 p-10 border-t border-[var(--gold)]/20">
+              <div
+                className="p-10 border-t border-[var(--gold)]/20"
+                style={{ background: 'rgba(255,255,255,0.6)', boxShadow: '0 8px 32px rgba(44,93,99,0.06)', borderRadius: '12px' }}
+              >
                 <div className="w-12 h-12 bg-[var(--gold)]/10 rounded-full flex items-center justify-center mb-6">
                   <Lock className="w-6 h-6 text-[var(--gold)]" />
                 </div>
@@ -356,6 +406,7 @@ export default function Home() {
               </h2>
             </div>
             <div className="flex flex-col gap-12">
+              {/* Melhoria #6: micro-interação nos cards + duration-200 */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
                 {[
                   { emoji: '❤️', label: 'Amor', slug: 'amor' },
@@ -370,7 +421,7 @@ export default function Home() {
                   <a
                     key={slug}
                     href={`/quiz?ocasiao=${slug}`}
-                    className="bg-white/40 border border-[var(--teal)]/5 rounded-2xl p-8 text-center hover:shadow-md hover:border-[var(--gold)]/30 transition-all cursor-pointer flex flex-col items-center gap-3"
+                    className="bg-white/40 border border-[var(--teal)]/5 rounded-2xl p-8 text-center hover:shadow-lg hover:border-[var(--gold)]/40 hover:scale-[1.04] hover:bg-white/70 transition-all duration-200 cursor-pointer flex flex-col items-center gap-3 active:scale-95"
                   >
                     <div className="text-4xl">{emoji}</div>
                     <div className="text-[var(--teal)] font-bold text-sm heading-font uppercase tracking-wide">{label}</div>
@@ -381,6 +432,7 @@ export default function Home() {
           </div>
         </section>
 
+        {/* Melhoria #7: ornament-line MANTIDA aqui — separa cream→cream antes do bloco de oferta */}
         <div className="px-6">
           <div className="ornament-line"></div>
         </div>
@@ -393,7 +445,6 @@ export default function Home() {
               <h2 className="text-3xl sm:text-4xl text-[var(--teal)]">A música de quem você ama. Por R$47.</h2>
             </div>
 
-            {/* Stack de valor */}
             <ul className="space-y-8 mb-16 max-w-xl mx-auto">
               {[
                 { titulo: "Uma composição original", desc: "Letra, melodia e arranjo feitos do zero — com o nome e a história de quem você ama. Não existe igual em nenhum lugar." },
@@ -412,7 +463,6 @@ export default function Home() {
               ))}
             </ul>
 
-            {/* Narrativa curta — antes da ancoragem */}
             <div className="my-10 max-w-md mx-auto">
               <p className="text-[var(--teal-light)] text-lg font-light leading-relaxed italic font-serif">
                 Você manda a música às 7 da manhã.<br /><br />
@@ -428,7 +478,6 @@ export default function Home() {
               </p>
             </div>
 
-            {/* Ancoragem de preço */}
             <div className="max-w-xl mx-auto text-center mb-12">
               <p className="text-[var(--teal-light)] text-lg leading-relaxed italic">
                 Um buquê de flores custa R$80 e murcha em três dias.<br />
@@ -437,12 +486,12 @@ export default function Home() {
               </p>
             </div>
 
-            {/* Preço e CTA */}
             <div className="flex flex-col items-center gap-6">
               <div className="text-5xl font-black text-[var(--gold)] heading-font">R$47</div>
+              {/* Melhoria #4: CTA do bloco de oferta — menor que hero, maior que os intermediários */}
               <a
                 href="/quiz"
-                className="group bg-[var(--gold)] text-white heading-font text-base py-4 px-10 rounded-lg shadow-[0_8px_20px_rgba(234,161,21,0.3)] hover:bg-[var(--gold-dark)] hover:scale-105 active:scale-95 transition-all duration-200 flex items-center gap-3"
+                className="group bg-[var(--gold)] text-white heading-font text-base py-4 px-10 rounded-lg shadow-[0_8px_20px_rgba(234,161,21,0.3)] hover:scale-105 active:scale-95 transition-all duration-200 flex items-center gap-3"
               >
                 <span>Criar Minha Música por R$47</span>
                 <ArrowRight className="w-5 h-5 transition-transform duration-200 group-hover:translate-x-1" />
@@ -452,16 +501,33 @@ export default function Home() {
         </section>
 
         {/* ===== SEÇÃO 8 — GARANTIA ===== */}
+        {/* Melhoria #8: shimmer animado na borda + ambient glow gold */}
         <section className="px-6 py-20">
-          <div className="max-w-4xl mx-auto border-2 border-[var(--gold)] p-12 text-center relative">
-            <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-[var(--cream)] px-6">
-              <BadgeCheck className="w-12 h-12 text-[var(--gold)]" />
+          <div className="max-w-4xl mx-auto relative">
+            {/* Shimmer border — conic-gradient rotacionando sobre a borda gold */}
+            <div
+              className="absolute inset-0 rounded-sm"
+              style={{
+                padding: '2px',
+                background: 'conic-gradient(from var(--shimmer-angle, 0deg), transparent 0%, rgba(234,161,21,0.6) 10%, transparent 20%, transparent 80%, rgba(234,161,21,0.4) 90%, transparent 100%)',
+                WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+                WebkitMaskComposite: 'xor',
+                maskComposite: 'exclude',
+                animation: 'vh-border-spin 6s linear infinite',
+              }}
+            />
+            <div className="border-2 border-[var(--gold)] p-12 text-center relative"
+              style={{ boxShadow: '0 0 40px rgba(234,161,21,0.07), 0 8px 32px rgba(44,93,99,0.06)' }}
+            >
+              <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-[var(--cream)] px-6">
+                <BadgeCheck className="w-12 h-12 text-[var(--gold)]" />
+              </div>
+              <h2 className="text-3xl text-[var(--teal)] mb-2">Se a música não emocionar, você não paga</h2>
+              <p className="text-xl text-[var(--gold)] italic mb-6">Simples assim.</p>
+              <p className="text-[var(--teal-light)] text-lg mb-8 max-w-lg mx-auto font-light leading-relaxed">
+                Você tem 7 dias depois de receber a música. Se não rolar aquele arrepio — sabe aquele? — é só falar e a gente devolve tudo. Sem burocracia. Sem explicação. Sem pergunta. A gente confia tanto nessa música que oferece isso sem medo nenhum. Só que isso nunca aconteceu por aqui.
+              </p>
             </div>
-            <h2 className="text-3xl text-[var(--teal)] mb-2">Se a música não emocionar, você não paga</h2>
-            <p className="text-xl text-[var(--gold)] italic mb-6">Simples assim.</p>
-            <p className="text-[var(--teal-light)] text-lg mb-8 max-w-lg mx-auto font-light leading-relaxed">
-              Você tem 7 dias depois de receber a música. Se não rolar aquele arrepio — sabe aquele? — é só falar e a gente devolve tudo. Sem burocracia. Sem explicação. Sem pergunta. A gente confia tanto nessa música que oferece isso sem medo nenhum. Só que isso nunca aconteceu por aqui.
-            </p>
           </div>
         </section>
 
@@ -476,9 +542,10 @@ export default function Home() {
               Não dê mais um presente que vai para o fundo da gaveta.<br />
               Responde o quiz. A gente faz o resto.
             </p>
+            {/* CTA final = mesmo nível do hero: rounded-lg grande + shadow forte */}
             <a
               href="/quiz"
-              className="group inline-flex items-center gap-3 bg-[var(--gold)] text-white heading-font text-lg py-5 px-12 rounded-lg shadow-[0_8px_20px_rgba(234,161,21,0.3)] hover:bg-[var(--gold-dark)] hover:scale-105 active:scale-95 transition-all duration-200"
+              className="group inline-flex items-center gap-3 bg-[var(--gold)] text-white heading-font text-lg py-5 px-12 rounded-lg shadow-[0_8px_20px_rgba(234,161,21,0.3)] hover:scale-105 active:scale-95 transition-all duration-200"
             >
               <span>🎵 Criar Minha Música por R$47</span>
               <ArrowRight className="w-5 h-5 transition-transform duration-200 group-hover:translate-x-1" />
@@ -490,66 +557,52 @@ export default function Home() {
         </section>
 
         {/* ===== SEÇÃO 9 — FAQ ===== */}
+        {/* Melhoria #10: substituído <details> nativo por FaqItem com transição suave */}
         <section id="faq" className="px-6 py-24 max-w-4xl mx-auto">
           <div className="mb-16">
             <h2 className="text-3xl text-[var(--teal)] text-center">Dúvidas Frequentes</h2>
           </div>
-          <div className="space-y-4">
-            <details className="group border-b border-[var(--teal)]/10 pb-4">
-              <summary className="flex items-center justify-between cursor-pointer list-none py-6">
-                <span className="heading-font text-lg uppercase">Preciso saber cantar para usar?</span>
-                <ChevronDown className="w-6 h-6 group-open:rotate-180 transition-transform" />
-              </summary>
-              <div className="pb-6 text-[var(--teal-light)] leading-relaxed italic">
+          <div className="space-y-0">
+            <FaqItem
+              question="Preciso saber cantar para usar?"
+              answer={<>
                 Não. Você só precisa contar a história.<br />
                 A música é composta e cantada por nós — com letra feita do zero a partir do que você contou.<br />
                 Você não aparece na música. Só a história de vocês.
-              </div>
-            </details>
-            <details className="group border-b border-[var(--teal)]/10 pb-4">
-              <summary className="flex items-center justify-between cursor-pointer list-none py-6">
-                <span className="heading-font text-lg uppercase">Quanto tempo demora a entrega?</span>
-                <ChevronDown className="w-6 h-6 group-open:rotate-180 transition-transform" />
-              </summary>
-              <div className="pb-6 text-[var(--teal-light)] leading-relaxed italic">
+              </>}
+            />
+            <FaqItem
+              question="Quanto tempo demora a entrega?"
+              answer={<>
                 Após responder o quiz e confirmar o pagamento, a música fica pronta em até 24 horas.<br />
                 Você recebe o arquivo direto no WhatsApp.
-              </div>
-            </details>
-            <details className="group border-b border-[var(--teal)]/10 pb-4">
-              <summary className="flex items-center justify-between cursor-pointer list-none py-6">
-                <span className="heading-font text-lg uppercase">Posso postar nas redes sociais?</span>
-                <ChevronDown className="w-6 h-6 group-open:rotate-180 transition-transform" />
-              </summary>
-              <div className="pb-6 text-[var(--teal-light)] leading-relaxed italic">
+              </>}
+            />
+            <FaqItem
+              question="Posso postar nas redes sociais?"
+              answer={<>
                 Sim. A música é sua.<br />
                 Pode postar no Instagram, mandar no grupo da família, colocar no TikTok.<br />
                 Sem medo de bloqueio. É sua para sempre.
-              </div>
-            </details>
-            <details className="group border-b border-[var(--teal)]/10 pb-4">
-              <summary className="flex items-center justify-between cursor-pointer list-none py-6">
-                <span className="heading-font text-lg uppercase">Como é feito o pagamento?</span>
-                <ChevronDown className="w-6 h-6 group-open:rotate-180 transition-transform" />
-              </summary>
-              <div className="pb-6 text-[var(--teal-light)] leading-relaxed italic">
+              </>}
+            />
+            <FaqItem
+              question="Como é feito o pagamento?"
+              answer={<>
                 PIX ou cartão de crédito.<br />
                 O processo é rápido e seguro.<br />
                 Assim que o pagamento é confirmado, seu pedido já entra na fila.
-              </div>
-            </details>
-            <details className="group border-b border-[var(--teal)]/10 pb-4">
-              <summary className="flex items-center justify-between cursor-pointer list-none py-6">
-                <span className="heading-font text-lg uppercase">Como a música é feita?</span>
-                <ChevronDown className="w-6 h-6 group-open:rotate-180 transition-transform" />
-              </summary>
-              <div className="pb-6 text-[var(--teal-light)] leading-relaxed italic">
+              </>}
+            />
+            <FaqItem
+              question="Como a música é feita?"
+              answer={<>
                 Você conta a história — nome, ocasião, o que viveram juntos.<br />
                 A gente escreve a letra com os detalhes que você deu e grava no estilo que você escolheu.<br />
                 Não é uma música pronta com o nome colocado no meio.<br />
                 É uma composição feita do zero, que só existe por causa da história de vocês.
-              </div>
-            </details>
+              </>}
+            />
           </div>
         </section>
 
