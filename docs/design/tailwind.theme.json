@@ -1,0 +1,110 @@
+{
+  "theme": {
+    "extend": {
+      "colors": {
+        "primary": "#2c5d63",
+        "secondary": "#3d7a81",
+        "accent": "#eaa115",
+        "neutral": "#f4eedc",
+        "whatsapp": "#25d366",
+        "dark": "#121212",
+        "on-primary": "#ffffff",
+        "on-accent": "#ffffff",
+        "on-neutral": "#2c5d63"
+      },
+      "fontFamily": {
+        "h1": [
+          "Open Sans"
+        ],
+        "h2": [
+          "Open Sans"
+        ],
+        "h3": [
+          "Open Sans"
+        ],
+        "body-lg": [
+          "Merriweather"
+        ],
+        "body-md": [
+          "Merriweather"
+        ],
+        "caption": [
+          "Open Sans"
+        ],
+        "price": [
+          "Open Sans"
+        ]
+      },
+      "fontSize": {
+        "h1": [
+          "4rem",
+          {
+            "lineHeight": "1.1",
+            "letterSpacing": "-0.02em",
+            "fontWeight": "800"
+          }
+        ],
+        "h2": [
+          "2.25rem",
+          {
+            "lineHeight": "1.2",
+            "letterSpacing": "-0.02em",
+            "fontWeight": "800"
+          }
+        ],
+        "h3": [
+          "1.5rem",
+          {
+            "lineHeight": "1.2",
+            "letterSpacing": "-0.02em",
+            "fontWeight": "800"
+          }
+        ],
+        "body-lg": [
+          "1.125rem",
+          {
+            "lineHeight": "1.625",
+            "fontWeight": "400"
+          }
+        ],
+        "body-md": [
+          "1rem",
+          {
+            "lineHeight": "1.5",
+            "fontWeight": "400"
+          }
+        ],
+        "caption": [
+          "0.75rem",
+          {
+            "letterSpacing": "0.08em",
+            "fontWeight": "700"
+          }
+        ],
+        "price": [
+          "3rem",
+          {
+            "lineHeight": "1",
+            "fontWeight": "800"
+          }
+        ]
+      },
+      "borderRadius": {
+        "sm": "4px",
+        "md": "8px",
+        "lg": "16px",
+        "xl": "48px",
+        "full": "9999px"
+      },
+      "spacing": {
+        "xs": "4px",
+        "sm": "8px",
+        "md": "16px",
+        "lg": "24px",
+        "xl": "32px",
+        "section": "80px",
+        "hero": "128px"
+      }
+    }
+  }
+}
