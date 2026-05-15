@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Footer } from '../components/Footer';
 import { Header } from '../components/Header';
@@ -55,6 +55,21 @@ function FaqItem({ question, answer }: FaqItemProps) {
 
 export default function Home() {
   const [searchParams] = useSearchParams();
+  const heroCtaRef = useRef<HTMLAnchorElement>(null);
+
+  // Shimmer diagonal no hero CTA — dispara 1.5s após load, repete a cada 5s
+  useEffect(() => {
+    const el = heroCtaRef.current;
+    if (!el) return;
+    const fire = () => {
+      el.classList.remove('cta-shimmer-active');
+      void el.offsetWidth; // força reflow para reiniciar a animação
+      el.classList.add('cta-shimmer-active');
+    };
+    const t1 = setTimeout(fire, 1500);
+    const interval = setInterval(fire, 5000);
+    return () => { clearTimeout(t1); clearInterval(interval); };
+  }, []);
 
   return (
     <div className="v2-theme antialiased overflow-x-hidden selection:bg-[var(--gold)] selection:text-white" data-mode="connect">
@@ -99,11 +114,12 @@ export default function Home() {
             {/* Melhoria #4: hero CTA mantém rounded-full + tamanho grande — hierarquia máxima */}
             <div className="flex flex-col items-center gap-4 w-full">
               <a
+                ref={heroCtaRef}
                 href="/quiz"
-                className="group w-full max-w-[480px] bg-[var(--gold)] text-white heading-font text-lg py-5 px-8 rounded-full shadow-xl hover:scale-105 hover:shadow-2xl hover:gold-glow active:scale-95 transition-all duration-200 flex items-center justify-center gap-3"
+                className="group relative overflow-hidden w-full max-w-[480px] bg-[var(--gold)] text-white heading-font text-lg py-5 px-8 rounded-full shadow-xl hover:scale-105 hover:shadow-2xl hover:gold-glow active:scale-95 transition-all duration-200 flex items-center justify-center gap-3"
               >
                 <span>Criar Minha Música por R$47</span>
-                <ArrowRight className="w-6 h-6 transition-transform duration-200 group-hover:translate-x-1" />
+                <ArrowRight className="w-6 h-6 shrink-0 transition-transform duration-200 group-hover:translate-x-1" />
               </a>
               <div className="text-[var(--teal)] text-base font-medium tracking-tight text-center opacity-70">
                 Leva menos de 3 minutos • Entrega em 24h • Garantia de 7 dias
@@ -174,8 +190,8 @@ export default function Home() {
                 href="/quiz"
                 className="group bg-[var(--gold)] text-white heading-font text-sm py-3 px-8 rounded-lg shadow-[0_6px_16px_rgba(234,161,21,0.25)] hover:scale-105 active:scale-95 transition-all duration-200 flex items-center gap-2"
               >
-                <span>Criar Minha Música por R$47</span>
-                <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-1" />
+                <span>Quero a Minha Música</span>
+                <ArrowRight className="w-4 h-4 shrink-0 transition-transform duration-200 group-hover:translate-x-1" />
               </a>
             </div>
           </div>
@@ -230,8 +246,8 @@ export default function Home() {
                 href="/quiz"
                 className="group bg-[var(--gold)] text-white heading-font text-sm py-3 px-8 rounded-lg shadow-[0_6px_16px_rgba(234,161,21,0.25)] hover:scale-105 active:scale-95 transition-all duration-200 flex items-center gap-2"
               >
-                <span>Criar Minha Música por R$47</span>
-                <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-1" />
+                <span>Quero a Minha Música</span>
+                <ArrowRight className="w-4 h-4 shrink-0 transition-transform duration-200 group-hover:translate-x-1" />
               </a>
             </div>
 
@@ -287,8 +303,8 @@ export default function Home() {
                 href="/quiz"
                 className="group bg-[var(--gold)] text-white heading-font text-sm py-3 px-8 rounded-lg shadow-[0_6px_16px_rgba(234,161,21,0.25)] hover:scale-105 active:scale-95 transition-all duration-200 flex items-center gap-2"
               >
-                <span>Criar Minha Música por R$47</span>
-                <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-1" />
+                <span>Quero a Minha Música</span>
+                <ArrowRight className="w-4 h-4 shrink-0 transition-transform duration-200 group-hover:translate-x-1" />
               </a>
             </div>
           </div>
@@ -536,8 +552,8 @@ export default function Home() {
               href="/quiz"
               className="group inline-flex items-center gap-3 bg-[var(--gold)] text-white heading-font text-lg py-5 px-12 rounded-lg shadow-[0_8px_20px_rgba(234,161,21,0.3)] hover:scale-105 active:scale-95 transition-all duration-200"
             >
-              <span>🎵 Criar Minha Música por R$47</span>
-              <ArrowRight className="w-5 h-5 transition-transform duration-200 group-hover:translate-x-1" />
+              <span>Criar Minha Música por R$47</span>
+              <ArrowRight className="w-5 h-5 shrink-0 transition-transform duration-200 group-hover:translate-x-1" />
             </a>
             <p className="text-white/60 text-sm mt-6 tracking-wide">
               Leva menos de 3 minutos • Recebe em 24h • Garantia de 7 dias

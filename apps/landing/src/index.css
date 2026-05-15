@@ -95,6 +95,26 @@ html {
   }
 }
 
+/* Shimmer diagonal no hero CTA — one-shot 1.5s após load, repete a cada 5s via JS */
+@keyframes vh-cta-shimmer {
+  0%   { transform: translateX(-100%) skewX(-15deg); }
+  100% { transform: translateX(300%) skewX(-15deg); }
+}
+
+.cta-shimmer-active::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 30%,
+    rgba(255,255,255,0.35) 50%,
+    transparent 70%
+  );
+  animation: vh-cta-shimmer 0.7s ease-out forwards;
+  pointer-events: none;
+}
+
 /* Melhoria #9 — shimmer na barra de progresso do AudioPlayer durante loading */
 @keyframes vh-bar-shimmer {
   0%   { background-position: 200% center; }
