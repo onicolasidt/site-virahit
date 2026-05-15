@@ -21,7 +21,7 @@ export default function Home() {
       <Header />
       <main>
         {/* ===== SEÇÃO 1 — HERO ===== */}
-        <section className="relative px-4 pt-20 pb-12 overflow-hidden">
+        <section className="relative px-4 pt-24 pb-12 overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 abstract-pattern -z-10 rotate-12 translate-x-1/2"></div>
             <div className="max-w-4xl mx-auto flex flex-col gap-6">
             <div className="relative">
