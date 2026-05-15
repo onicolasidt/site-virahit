@@ -450,6 +450,7 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
   const [pixGenerating, setPixGenerating] = useState(false); // false — handleRegeneratePix define true quando inicia
   const [pixError, setPixError] = useState<string | null>(null);
   const [dataLoaded, setDataLoaded] = useState(false); // impede EAGER PIX de disparar antes do loadData() terminar
+  const [checkingPaidStatus, setCheckingPaidStatus] = useState(false); // evita flash de checkout enquanto verifica Firestore
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const redirectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -462,6 +463,8 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
       const urlPedidoId = params.get('pedido');
 
       if (urlPedidoId) {
+        // Busca no Firestore — mostrar loading enquanto verifica
+        setCheckingPaidStatus(true);
         // Código curto (VH-XXXXXX) ou ID real
         let idParaBuscar = urlPedidoId;
         let isCodigoCurto = urlPedidoId.startsWith('VH-');
@@ -485,8 +488,6 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
 
         if (data) {
           const p = data as any;
-          console.log('[Checkout] loadData found pedido:', { id: idParaBuscar, status: p.status });
-
           // Pedido já pago? Mostrar tela de obrigado
           if (p.status === 'pago') {
             setSession({
@@ -504,6 +505,7 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
             });
             setPageState('confirmed');
             setRedirectCountdown(null); // não redireciona automaticamente
+            setCheckingPaidStatus(false);
             return;
           }
 
@@ -542,10 +544,14 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
           }
           // PIX já existe no Firestore — não precisa gerar, para o loading
           if (p.pixCopiaCola) setPixGenerating(false);
+          setCheckingPaidStatus(false);
           setDataLoaded(true);
           return;
         }
       }
+
+      // Nenhum pedido encontrado via URL — prossegue com localStorage
+      setCheckingPaidStatus(false);
 
       const get = (key: string) => localStorage.getItem(key) ?? '';
       let quizData: any = {};
@@ -955,6 +961,21 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
   const stripeOptionsCard: StripeElementsOptions | undefined = clientSecret
     ? { clientSecret, appearance: stripeAppearance, locale: 'pt-BR' }
     : undefined;
+
+  // Loading: nao renderizar checkout nem confirmed ate verificar status no Firestore
+  if (checkingPaidStatus) {
+    return (
+      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#F4EEDC] px-6">
+        <img src="/nova-logo-virahit.svg" alt="ViraHit" className="h-8 w-auto mb-8" />
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 border-[3px] border-[var(--teal)]/20 border-t-[var(--teal)] rounded-full animate-spin" />
+          <p className="text-[var(--teal)]/60 text-[15px]" style={{ fontFamily: 'Merriweather, serif' }}>
+            Verificando seu pedido...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (pageState === 'confirmed') {
     return (
