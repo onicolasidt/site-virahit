@@ -337,7 +337,7 @@ newErrors.email = 'Digite um e-mail válido';
               {resolverGenero('Para onde enviamos a música [DA_DO] [NOME]?', data.genero, data.nome)}
             </h2>
             <p className="font-['Merriweather'] text-[15px] text-[var(--teal)]/70">
-              Só falta você falar pra onde a gente manda
+              Só falta você falar para onde a gente manda
             </p>
           </div>
 
@@ -381,7 +381,7 @@ newErrors.email = 'Digite um e-mail válido';
               <div className="min-h-[20px] mt-1.5">
                 {errors.email
                   ? <span role="alert" className="text-[#E53935] text-[13px] font-bold flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">error</span>{errors.email}</span>
-                  : <span className="text-[13.5px] text-[var(--teal)]/60 font-['Merriweather']">Recebe o arquivo por aqui também, pra guardar</span>}
+                  : <span className="text-[13.5px] text-[var(--teal)]/60 font-['Merriweather']">Recebe o arquivo por aqui também, para guardar</span>}
               </div>
             </div>
           </div>
