@@ -480,7 +480,7 @@ newErrors.email = 'Digite um e-mail válido';
           {/*
             WhatsApp clicável removido — saía da tela de conversão.
             Ícone estático mantido como trust signal.
-            Para reativar como link: remover o wrapper {/* ... */} e usar o <a> original.
+            Para reativar como link: remover o wrapper de div e usar o a original.
           */}
           <div className="flex flex-col gap-3 items-center">
             <div className="opacity-60">
