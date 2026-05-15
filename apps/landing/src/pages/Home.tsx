@@ -120,12 +120,11 @@ export default function Home() {
             <div className="mb-20 text-center">
               <span className="text-[var(--gold)] font-bold uppercase tracking-[0.4em] text-[10px] block mb-4">Simples assim</span>
               <h2 className="text-4xl mb-3">Como Funciona</h2>
-              <p className="text-[var(--gold)] font-bold uppercase tracking-[0.2em] text-xs">(Leva menos de 3 minutos. Você não precisa escrever nada elaborado.)</p>
+              <p className="text-[var(--gold)] font-bold uppercase tracking-[0.2em] text-xs">(Leva menos de 3 minutos.)</p>
             </div>
 
-            {/* Melhoria #5: timeline visual conectando os 3 passos */}
+            {/* Cirurgia 3: textos cortados para 2-3 linhas. Timeline visual mantida. */}
             <div className="relative">
-              {/* Linha vertical conectora — visível apenas em desktop */}
               <div
                 className="hidden md:block absolute left-7 top-8 bottom-8 w-px"
                 style={{ background: 'linear-gradient(to bottom, rgba(234,161,21,0.15), rgba(234,161,21,0.35), rgba(234,161,21,0.15))' }}
@@ -133,44 +132,35 @@ export default function Home() {
 
               <div className="space-y-20">
                 <div className="flex flex-col md:flex-row gap-10 items-start">
-                  {/* Melhoria #5: número com opacidade aumentada de 10 → 20 */}
                   <div className="heading-font text-6xl opacity-20 leading-none shrink-0 w-14 text-center">01</div>
                   <div className="flex-grow pt-4">
-                    <h3 className="text-3xl mb-6 text-[var(--gold)]">Conta a história de vocês</h3>
-                    <p className="text-lg opacity-80 leading-relaxed max-w-xl font-light">
-                      Responde um quiz rápido.<br />
-                      Nome de quem você ama, a ocasião especial,<br />
-                      o estilo musical favorito<br />
-                      e um momento que só vocês dois sabem.<br />
-                      A gente pergunta. Você responde.
+                    <h3 className="text-3xl mb-4 text-[var(--gold)]">Conta a história de vocês</h3>
+                    <p className="text-lg opacity-80 leading-relaxed max-w-md font-light">
+                      Responde um quiz rápido — nome, ocasião, estilo musical
+                      e um momento que só vocês dois sabem.
                     </p>
                   </div>
                 </div>
                 <div className="flex flex-col md:flex-row-reverse gap-10 items-start">
                   <div className="heading-font text-6xl opacity-20 leading-none shrink-0 w-14 text-center">02</div>
                   <div className="flex-grow pt-4">
-                    <h3 className="text-3xl mb-6 text-[var(--gold)]">A música nasce</h3>
-                    <p className="text-lg opacity-80 leading-relaxed max-w-xl font-light">
-                      Com tudo que você contou, a música é criada do zero —<br />
-                      letra, melodia e arranjo no estilo que você escolheu.<br />
-                      Sertanejo, Gospel, Pagode, Forró ou MPB.<br /><br />
-                      Essa canção não existia antes.<br />
-                      Agora ela só existe por causa de vocês.
+                    <h3 className="text-3xl mb-4 text-[var(--gold)]">A música nasce</h3>
+                    <p className="text-lg opacity-80 leading-relaxed max-w-md font-light">
+                      Letra, melodia e arranjo criados do zero no estilo que você escolheu.<br />
+                      <span className="opacity-60 italic">Essa canção não existia antes. Agora ela só existe por causa de vocês.</span>
                     </p>
                   </div>
                 </div>
                 <div className="flex flex-col md:flex-row gap-10 items-start">
                   <div className="heading-font text-6xl opacity-20 leading-none shrink-0 w-14 text-center">03</div>
                   <div className="flex-grow pt-4">
-                    <h3 className="text-3xl mb-6 text-[var(--gold)]">Você surpreende quem ama</h3>
-                    <p className="text-lg opacity-80 leading-relaxed max-w-xl font-light">
-                      Em até 24h, a música chega para você.<br />
-                      Manda pelo WhatsApp, coloca para tocar na hora do jantar,<br />
-                      ou aparece de surpresa com a música tocando.<br /><br />
-                      O que acontece depois — você vai querer ter filmado.
+                    <h3 className="text-3xl mb-4 text-[var(--gold)]">Você surpreende quem ama</h3>
+                    <p className="text-lg opacity-80 leading-relaxed max-w-md font-light">
+                      Em até 24h a música chega para você — manda pelo WhatsApp
+                      ou coloca para tocar na hora certa.
                     </p>
-                    <div className="mt-10 inline-flex items-center gap-3 py-2 px-4 border border-[var(--gold)]/30 rounded-sm">
-                      <BadgeCheck className="w-6 h-6 text-[var(--gold)]" />
+                    <div className="mt-8 inline-flex items-center gap-3 py-2 px-4 border border-[var(--gold)]/30 rounded-sm">
+                      <BadgeCheck className="w-5 h-5 text-[var(--gold)]" />
                       <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--gold)]">Qualidade de estúdio</span>
                     </div>
                   </div>
@@ -312,7 +302,7 @@ export default function Home() {
               <h2 className="text-3xl text-center text-[var(--teal)]">Por que a ViraHit é diferente</h2>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-              {/* Melhoria #2: shadow editorial no card principal */}
+              {/* Cirurgia 1: Amanda removida do card principal — card agora respira */}
               <div
                 className="md:row-span-2 border-r border-b border-[var(--teal)]/10 p-10 flex flex-col justify-center"
                 style={{ boxShadow: '20px 20px 0px rgba(44,93,99,0.04)' }}
@@ -329,7 +319,6 @@ export default function Home() {
                     <span className="text-[var(--gold)]">✦</span>
                     <span className="font-bold italic">
                       Essa música tem o nome de quem você ama na letra.<br />
-                      Tem aquele momento que só vocês dois sabem.<br />
                       Não tem igual em nenhum lugar do mundo.
                     </span>
                   </li>
@@ -337,36 +326,19 @@ export default function Home() {
                     <span className="text-[var(--gold)]">✦</span>
                     <span className="font-bold italic">
                       Não vai guardar numa gaveta.<br />
-                      Vai ouvir de novo. E de novo.<br />
-                      E toda vez que ouvir, vai lembrar de você.
+                      Toda vez que ouvir, vai lembrar de você.
                     </span>
                   </li>
                   <li className="flex items-start gap-4 text-[var(--teal)]">
                     <span className="text-[var(--gold)]">✦</span>
                     <span className="font-bold italic">
-                      Você não precisa saber escrever nem ter ideia nenhuma.<br />
-                      Responde o quiz, a gente faz o resto. Em 24h.
+                      Você não precisa de nenhuma ideia.<br />
+                      Responde o quiz. Em 24h está pronta.
                     </span>
                   </li>
                 </ul>
-
-                <div className="mt-8 mb-2">
-                  <WhatsAppTestimonial
-                    userName="Amanda"
-                    userLocation="Curitiba, PR"
-                    avatarLetters="A"
-                    avatarImgSrc={fotoDepoimento3}
-                    userText=""
-                    timeSent="14:15"
-                    timeReceived="14:22"
-                    songAudioSrc={depoimento2Audio}
-                    reviewText="Eu estava com muito medo de ficar com voz de robô, sabe? Mas ficou perfeito — parece que foi gravado num estúdio de verdade!"
-                    rating={5}
-                  />
-                </div>
               </div>
 
-              {/* Melhoria #2: shadow suave nos cards menores */}
               <div
                 className="p-10 border-t border-[var(--gold)]/20"
                 style={{ background: 'rgba(255,255,255,0.6)', boxShadow: '0 8px 32px rgba(44,93,99,0.06)', borderRadius: '12px' }}
@@ -392,6 +364,23 @@ export default function Home() {
                   Pode postar no Instagram, mandar no grupo da família, tocar no aniversário. Sem medo de bloqueio. É sua para sempre.
                 </p>
               </div>
+            </div>
+
+            {/* Cirurgia 1: Amanda solta, fora do card — respira entre os diferenciais e as ocasiões */}
+            <div className="mt-16 max-w-xl mx-auto">
+              <p className="text-center text-[var(--gold)] font-bold uppercase tracking-[0.3em] text-[10px] mb-6">O que nossos clientes dizem</p>
+              <WhatsAppTestimonial
+                userName="Amanda"
+                userLocation="Curitiba, PR"
+                avatarLetters="A"
+                avatarImgSrc={fotoDepoimento3}
+                userText=""
+                timeSent="14:15"
+                timeReceived="14:22"
+                songAudioSrc={depoimento2Audio}
+                reviewText="Eu estava com muito medo de ficar com voz de robô, sabe? Mas ficou perfeito — parece que foi gravado num estúdio de verdade!"
+                rating={5}
+              />
             </div>
           </div>
         </section>
@@ -462,8 +451,8 @@ export default function Home() {
                 </li>
               ))}
             </ul>
-
-            <div className="my-10 max-w-md mx-auto">
+            {/* Cirurgia 2: narrativa envolve em bloco visualmente separado */}
+            <div className="my-14 max-w-md mx-auto bg-[var(--teal)]/5 p-8 rounded-2xl border-l-4 border-[var(--gold)]/40">
               <p className="text-[var(--teal-light)] text-lg font-light leading-relaxed italic font-serif">
                 Você manda a música às 7 da manhã.<br /><br />
                 Quem você ama abre no celular, a caminho do trabalho.<br />
@@ -471,8 +460,8 @@ export default function Home() {
                 A história de vocês. Aquele momento que só vocês dois sabem.<br /><br />
                 Para tudo.<br />
                 Ouve de novo.<br />
-                Manda para o grupo da família.<br />
-                Liga para você chorando.<br /><br />
+                Manda pro grupo da família.<br />
+                Liga pra você chorando.<br /><br />
                 Você só precisou responder algumas perguntas.<br />
                 A gente cuidou do resto.
               </p>
