@@ -15,3 +15,4 @@ watchdog-*.json
 # Documentação de projetos antigos
 metadata.json
 firebase-blueprint.json
+.vercel

@@ -628,22 +628,20 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
     loadData();
   }, []);
 
-  // PIX gerado automaticamente quando pedidoId está disponível e não há PIX ainda
-  // Usa ref para evitar problema de hoisting com handleRegeneratePix declarado abaixo
-  const autoPixRef = useRef<(() => void) | null>(null);
+  // EAGER PIX: gerar QR code automaticamente assim que o pedido estiver carregado
+  // (não espera o usuário clicar na aba PIX). Menos cliques = mais conversão.
   useEffect(() => {
     if (
       session.idPedido &&
       session.idPedido !== 'demo-pedido' &&
       !session.pixCopiaCola &&
       pixState !== 'expired' &&
-      pageState === 'checkout' &&
-      autoPixRef.current
+      pageState === 'checkout'
     ) {
-      autoPixRef.current();
+      handleRegeneratePix();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session.idPedido]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session.idPedido, session.pixCopiaCola, pixState, pageState]);
 
   const fetchClientSecret = useCallback(async (forcePedidoId?: string) => {
     const id = forcePedidoId || session.idPedido;
@@ -906,9 +904,6 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
       setPixGenerating(false);
     }
   };
-
-  // Registrar handleRegeneratePix na ref para uso no useEffect de PIX automático
-  autoPixRef.current = handleRegeneratePix;
 
   const timerIsWarning = timeLeft <= 180;
   

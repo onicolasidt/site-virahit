@@ -106,6 +106,10 @@ export function Quiz({ onFinishQuiz, initialStep = 1 }: QuizProps) {
   const [playingStyle, setPlayingStyle] = useState<string | null>(null);
   const [loadingStyle, setLoadingStyle] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const nomeInputRef = useRef<HTMLInputElement | null>(null);
+  const continuar1Ref = useRef<HTMLButtonElement | null>(null);
+  const vozSectionRef = useRef<HTMLDivElement | null>(null);
+  const continuar2Ref = useRef<HTMLButtonElement | null>(null);
 
   // Gravação real com MediaRecorder
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -340,7 +344,14 @@ export function Quiz({ onFinishQuiz, initialStep = 1 }: QuizProps) {
               {VINCULOS.map(v => (
                 <button
                   key={v.label}
-                  onClick={() => autoSaveNow({ ...data, vinculo: v.label as Vinculo })}
+                  onClick={() => {
+                    autoSaveNow({ ...data, vinculo: v.label as Vinculo });
+                    // Auto-scroll para o campo nome após selecionar destinatário
+                    setTimeout(() => {
+                      nomeInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                      nomeInputRef.current?.focus();
+                    }, 200);
+                  }}
                   className={`p-4 rounded-sm border-2 text-left transition-all ${data.vinculo === v.label ? 'border-[var(--gold)] bg-[var(--gold)]/10 shadow-sm' : 'border-[var(--teal)]/10 bg-white/50 hover:border-[var(--gold)]/30'}`}
                 >
                   <span className="text-2xl block mb-2">{v.emoji}</span>
@@ -373,6 +384,7 @@ export function Quiz({ onFinishQuiz, initialStep = 1 }: QuizProps) {
                 <input
                   type="text"
                   maxLength={50}
+                  ref={nomeInputRef}
                   value={data.nome}
                   onChange={(e) => setData({ ...data, nome: e.target.value })}
                   placeholder="Nome (Ex: João)"
@@ -386,7 +398,10 @@ export function Quiz({ onFinishQuiz, initialStep = 1 }: QuizProps) {
                   <span className="text-base font-medium text-[var(--teal)]/80 mb-2 block">{data.nome} é:</span>
                   <div className="flex gap-3">
                     <button
-                      onClick={() => autoSaveNow({ ...data, genero: 'F' })}
+                      onClick={() => {
+                        autoSaveNow({ ...data, genero: 'F' });
+                        setTimeout(() => continuar1Ref.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 200);
+                      }}
                       className={`px-8 py-3 rounded-sm border-2 text-center font-bold text-lg transition-all ${
                         data.genero === 'F' ? 'border-[var(--gold)] bg-[var(--gold)]/10 text-[var(--teal)] shadow-sm' : 'border-[var(--teal)]/10 bg-white/50 hover:border-[var(--gold)]/30 text-[var(--teal)]'
                       }`}
@@ -394,7 +409,10 @@ export function Quiz({ onFinishQuiz, initialStep = 1 }: QuizProps) {
                       Ela
                     </button>
                     <button
-                      onClick={() => autoSaveNow({ ...data, genero: 'M' })}
+                      onClick={() => {
+                        autoSaveNow({ ...data, genero: 'M' });
+                        setTimeout(() => continuar1Ref.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 200);
+                      }}
                       className={`px-8 py-3 rounded-sm border-2 text-center font-bold text-lg transition-all ${
                         data.genero === 'M' ? 'border-[var(--gold)] bg-[var(--gold)]/10 text-[var(--teal)] shadow-sm' : 'border-[var(--teal)]/10 bg-white/50 hover:border-[var(--gold)]/30 text-[var(--teal)]'
                       }`}
@@ -407,6 +425,7 @@ export function Quiz({ onFinishQuiz, initialStep = 1 }: QuizProps) {
             </div>
 
             <button
+              ref={continuar1Ref}
               disabled={!data.vinculo || (data.vinculo === 'Outro' && !data.vinculoOutro?.trim()) || !isNameValid || data.genero === null}
               onClick={() => {
                 setStep(2);
@@ -432,7 +451,11 @@ export function Quiz({ onFinishQuiz, initialStep = 1 }: QuizProps) {
               {ESTILOS.map(estilo => (
                 <div
                   key={estilo.label}
-                  onClick={() => autoSaveNow({ ...data, estilo: estilo.label })}
+                  onClick={() => {
+                    autoSaveNow({ ...data, estilo: estilo.label });
+                    // Auto-scroll para a seção de voz após selecionar estilo
+                    setTimeout(() => vozSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 200);
+                  }}
                   className={`relative flex flex-col items-center justify-center p-4 rounded-sm border-2 transition-all cursor-pointer ${data.estilo === estilo.label ? 'border-[var(--gold)] bg-[var(--gold)]/10 shadow-sm' : 'border-[var(--teal)]/10 bg-white/50 hover:border-[var(--gold)]/30'}`}
                 >
                   <span className="text-3xl mb-2">{estilo.emoji}</span>
@@ -463,17 +486,23 @@ export function Quiz({ onFinishQuiz, initialStep = 1 }: QuizProps) {
             </div>
             <p className="text-center text-base text-[var(--teal-light)] italic mb-10">Não tem certeza? Ouça os exemplos antes de escolher.</p>
 
-            <div className="mb-12">
+            <div ref={vozSectionRef} className="mb-12">
               <label className="block heading-font text-xl text-[var(--teal)] mb-5">E a voz?</label>
               <div className="grid grid-cols-2 gap-4">
                 <button
-                  onClick={() => autoSaveNow({ ...data, voz: 'Feminina' })}
+                  onClick={() => {
+                    autoSaveNow({ ...data, voz: 'Feminina' });
+                    setTimeout(() => continuar2Ref.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 200);
+                  }}
                   className={`py-4 flex items-center justify-center gap-2 rounded-sm border-2 transition-all ${data.voz === 'Feminina' ? 'border-[var(--gold)] bg-[var(--gold)]/10 shadow-sm' : 'border-[var(--teal)]/10 bg-white/50 hover:border-[var(--gold)]/30'}`}
                 >
                   🎤 <span className="heading-font text-lg text-[var(--teal)]">Feminina</span>
                 </button>
                 <button
-                  onClick={() => autoSaveNow({ ...data, voz: 'Masculina' })}
+                  onClick={() => {
+                    autoSaveNow({ ...data, voz: 'Masculina' });
+                    setTimeout(() => continuar2Ref.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 200);
+                  }}
                   className={`py-4 flex items-center justify-center gap-2 rounded-sm border-2 transition-all ${data.voz === 'Masculina' ? 'border-[var(--gold)] bg-[var(--gold)]/10 shadow-sm' : 'border-[var(--teal)]/10 bg-white/50 hover:border-[var(--gold)]/30'}`}
                 >
                   🎤 <span className="heading-font text-lg text-[var(--teal)]">Masculina</span>
@@ -482,6 +511,7 @@ export function Quiz({ onFinishQuiz, initialStep = 1 }: QuizProps) {
             </div>
 
             <button
+              ref={continuar2Ref}
               disabled={!data.estilo || !data.voz}
               onClick={() => {
                 setStep(3);
