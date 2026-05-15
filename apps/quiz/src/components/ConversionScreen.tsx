@@ -263,19 +263,7 @@ newErrors.email = 'Digite um e-mail válido';
         }
       `}</style>
 
-      {/* FLOATING ICONS FOR EMOTION */}
-      <div className="hidden sm:block absolute top-[15%] left-[10%] text-[var(--gold)]/20 animate-float">
-        <span className="material-symbols-outlined text-6xl" style={{ fontVariationSettings: "'FILL' 1" }}>favorite</span>
-      </div>
-      <div className="hidden sm:block absolute top-[25%] right-[10%] text-[var(--teal)]/10 animate-float-delayed">
-        <span className="material-symbols-outlined text-7xl">music_note</span>
-      </div>
-      <div className="hidden sm:block absolute top-[60%] left-[8%] text-[var(--teal)]/5 animate-float-slow">
-        <span className="material-symbols-outlined text-5xl">auto_awesome</span>
-      </div>
-      <div className="hidden sm:block absolute top-[70%] right-[12%] text-[var(--gold)]/15 animate-float">
-        <span className="material-symbols-outlined text-6xl">straighten</span>
-      </div>
+      {/* Ícones decorativos removidos para reduzir distração visual */}
 
       <header className="sticky top-0 z-50 bg-[var(--cream)]/80 backdrop-blur-md px-6 py-4 flex items-center justify-center border-b border-[var(--teal)]/10">
         <img src="/nova-logo-virahit.svg" alt="ViraHit" className="h-8 w-auto" />
@@ -292,7 +280,7 @@ newErrors.email = 'Digite um e-mail válido';
             {resolverGenero('A história [DA_DO] [NOME] vai virar uma música só pra [ELA_ELE]', data.genero, data.nome)}
           </h1>
           <p className="font-['Merriweather'] text-[16px] sm:text-[18px] text-[var(--teal)]/80 leading-relaxed max-w-[360px] mx-auto opacity-90">
-            Essa música não existe em lugar nenhum ainda. <strong className="text-[var(--teal)] font-bold">Você acabou de criar ela.</strong>
+            Daqui a pouco <strong className="text-[var(--teal)] font-bold">{resolverGenero('[ELA_ELE]', data.genero, data.nome)}</strong> vai apertar o play. E vai ouvir, pela primeira vez, uma música que só existe por causa da história de vocês.
           </p>
         </div>
 
@@ -357,7 +345,7 @@ newErrors.email = 'Digite um e-mail válido';
                 <input id="campo-nome" type="text" maxLength={100} value={nome}
                   onChange={(e) => { setNome(e.target.value); localStorage.setItem('compradorNome', e.target.value); if (errors.nome) setErrors({ ...errors, nome: '' }); }}
                   className={'w-full bg-[#F5F3EC]/50 outline-none border ' + (errors.nome ? 'border-[#E53935] bg-red-50' : 'border-[var(--teal)]/10 focus:border-[var(--teal)]/30 focus:bg-white') + ' px-4 py-3.5 rounded-xl text-[var(--teal)] transition-all text-[16px] shadow-inner'}
-                  placeholder="Seu nome" aria-invalid={!!errors.nome} />
+                  placeholder="Como quer ser chamado" aria-invalid={!!errors.nome} />
               </div>
               <div className="min-h-[20px] mt-1.5">
                 {errors.nome && <span role="alert" className="text-[#E53935] text-[13px] font-bold flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">error</span>{errors.nome}</span>}
@@ -390,7 +378,7 @@ newErrors.email = 'Digite um e-mail válido';
               <div className="min-h-[20px] mt-1.5">
                 {errors.email
                   ? <span role="alert" className="text-[#E53935] text-[13px] font-bold flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">error</span>{errors.email}</span>
-                  : <span className="text-[13.5px] text-[var(--teal)]/60 font-['Merriweather']">Você recebe o link da música aqui também</span>}
+                  : <span className="text-[13.5px] text-[var(--teal)]/60 font-['Merriweather']">Recebe o arquivo por aqui também, pra guardar</span>}
               </div>
             </div>
           </div>
@@ -409,52 +397,15 @@ newErrors.email = 'Digite um e-mail válido';
           <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--gold)]/5 rounded-full blur-[30px] pointer-events-none"></div>
 
           <div className="text-center relative z-10">
-            <h3 className="font-['Open_Sans'] font-extrabold text-[15px] sm:text-[16px] text-[var(--teal)]/70 uppercase tracking-[0.15em] mb-8">
-              {resolverGenero('A música que só [A_O] [NOME] vai ter', data.genero, data.nome)}
-            </h3>
+            {/*
+              H3 redundante removido — a headline principal da tela já personaliza.
+              Stack de 4 bullets removido — a pessoa já sabe o que está comprando ao chegar aqui.
+              O quiz construiu o valor. Essa tela só executa.
+              Separador music_cast removido — fragmentava o bloco sem função.
+            */}
 
-            <div className="flex flex-col gap-6 text-left mx-auto w-full max-w-[340px] mb-10">
-              {[
-                {
-                  title: resolverGenero('[ELA_ELE_CAPS] pode ouvir essa música pra sempre', data.genero, data.nome),
-                  desc: ['Salva no celular', 'Toca no aniversário, em qualquer dia']
-                },
-                {
-                  title: 'Não existe outra igual no mundo',
-                  desc: ['Só com a história que você contou', resolverGenero('Só pra [ELA_ELE]', data.genero, data.nome)]
-                },
-                {
-                  title: 'A gente escreve, grava e manda em até 24h',
-                  desc: ['Direto no seu WhatsApp']
-                },
-                {
-                  title: 'Você não perde nada — 7 dias de garantia total',
-                  desc: ['Ouviu e não gostou? Devolução completa', 'Sem pergunta. Sem enrolação.']
-                }
-              ].map((item, i) => (
-                <div key={i} className="flex gap-4 items-start">
-                  <div className="w-6 h-6 rounded-full bg-[var(--gold)]/10 flex items-center justify-center shrink-0 mt-0.5">
-                    <span className="material-symbols-outlined text-[var(--gold)] text-[16px]" style={{ fontVariationSettings: "'FILL' 1" }}>done</span>
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="font-['Merriweather'] text-[15px] text-[var(--teal)] font-bold block first-letter:uppercase">{item.title}</span>
-                    <span className="font-['Merriweather'] text-[13.5px] text-[var(--teal)]/60 mt-1 leading-relaxed">
-                      {item.desc.map((d, j) => <span key={j} className="block">{d}</span>)}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="flex items-center gap-4 my-8 justify-center">
-              <div className="h-px bg-gradient-to-r from-transparent via-[var(--teal)]/20 to-transparent w-full max-w-[80px]"></div>
-              <span className="material-symbols-outlined text-[var(--gold)]/50 text-[20px]">music_cast</span>
-              <div className="h-px bg-gradient-to-r from-transparent via-[var(--teal)]/20 to-transparent w-full max-w-[80px]"></div>
-            </div>
-
-            <div className="flex flex-col items-center gap-1.5 mb-8 text-center px-2">
-              <span className="text-[14px] text-[var(--teal)]/60 italic font-['Merriweather'] pt-1">Flores murcham em 3 dias</span>
-              <span className="text-[14px] text-[var(--teal)]/60 italic font-['Merriweather'] pb-1">Chocolates somem em 5 minutos</span>
+            <div className="flex flex-col items-center gap-1 mb-8 text-center px-2">
+              <span className="text-[13px] text-[var(--teal)]/50 italic font-['Merriweather']">Flores murcham em 3 dias. Chocolates somem em 5 minutos.</span>
               <span className="font-['Open_Sans'] font-extrabold text-[22px] sm:text-[24px] leading-tight text-[var(--teal)] tracking-tight mt-1">
                 Essa música fica pra sempre
               </span>
@@ -523,51 +474,27 @@ newErrors.email = 'Digite um e-mail válido';
           </div>
         </div>
 
-        {/* SOCIAL PROOF (REVIEWS) */}
-        <div className="mt-12 mb-4 relative z-10 w-full max-w-md mx-auto px-2">
-          <div className="flex items-center justify-center gap-1 mb-5">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <svg key={i} viewBox="0 0 24 24" fill="#F5B041" className="w-[18px] h-[18px]">
-                <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
-              </svg>
-            ))}
-          </div>
-          <div className="space-y-3">
-            <div className="bg-white/40 backdrop-blur-sm rounded-2xl p-4 sm:p-5 border border-[var(--teal)]/5 shadow-[0_4px_20px_rgba(44,93,99,0.02)]">
-               <p className="font-['Merriweather'] text-[13px] sm:text-[14px] text-[var(--teal)] italic mb-2 leading-relaxed">
-                 "Chorei horrores ouvindo a música. Ficou perfeita, entregaram super rápido direto no WhatsApp."
-               </p>
-               <p className="font-['Open_Sans'] text-[11px] font-bold text-[var(--teal)]/60 uppercase tracking-wider">— Mariana S.</p>
-            </div>
-            
-            <div className="bg-white/40 backdrop-blur-sm rounded-2xl p-4 sm:p-5 border border-[var(--teal)]/5 shadow-[0_4px_20px_rgba(44,93,99,0.02)]">
-               <p className="font-['Merriweather'] text-[13px] sm:text-[14px] text-[var(--teal)] italic mb-2 leading-relaxed">
-                 "Zero burocracia. O PIX aprovou na hora e a música ficou surreal de boa! Recomendo pra todo mundo."
-               </p>
-               <p className="font-['Open_Sans'] text-[11px] font-bold text-[var(--teal)]/60 uppercase tracking-wider">— Pedro H.</p>
-            </div>
-            
-            <div className="bg-white/40 backdrop-blur-sm rounded-2xl p-4 sm:p-5 border border-[var(--teal)]/5 shadow-[0_4px_20px_rgba(44,93,99,0.02)]">
-               <p className="font-['Merriweather'] text-[13px] sm:text-[14px] text-[var(--teal)] italic mb-2 leading-relaxed">
-                 "Melhor presente que já dei na vida. Confiança total nessa galera, valeu cada centavo!"
-               </p>
-               <p className="font-['Open_Sans'] text-[11px] font-bold text-[var(--teal)]/60 uppercase tracking-wider">— Amanda L.</p>
-            </div>
-          </div>
-        </div>
+        {/* Depoimentos removidos — prova social já está na landing page */}
 
         <div className="mt-12 text-center pb-8 flex flex-col items-center justify-center relative z-10">
-          <a href="https://wa.me/5511999999999?text=Oi%20Monica!" target="_blank" rel="noopener noreferrer" className="flex flex-col gap-3 items-center group">
-            <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#33A854" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-300">
-              <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
-            </svg>
+          {/*
+            WhatsApp clicável removido — saía da tela de conversão.
+            Ícone estático mantido como trust signal.
+            Para reativar como link: remover o wrapper {/* ... */} e usar o <a> original.
+          */}
+          <div className="flex flex-col gap-3 items-center">
+            <div className="opacity-60">
+              <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#33A854" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+              </svg>
+            </div>
             <div className="flex flex-col items-center gap-1 mt-1">
-              <span className="font-['Merriweather'] text-[14px] text-[var(--teal)]/70">Tem dúvida rápida?</span>
-              <span className="font-['Merriweather'] font-bold text-[15px] text-[var(--teal)] group-hover:text-[#33A854] transition-colors">
-                Fala com a Mônica no WhatsApp
+              <span className="font-['Merriweather'] text-[14px] text-[var(--teal)]/70">Precisa de ajuda?</span>
+              <span className="font-['Merriweather'] text-[15px] text-[var(--teal)]/50">
+                A equipe ViraHit responde em até 2h
               </span>
             </div>
-          </a>
+          </div>
         </div>
       </div>
 
