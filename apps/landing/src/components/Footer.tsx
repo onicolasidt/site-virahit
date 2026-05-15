@@ -26,7 +26,7 @@ export function Footer() {
             />
           </div>
           <p className="text-[var(--teal-light)] italic leading-relaxed">
-            Música personalizada feita com carinho. Transformando histórias em emoção — direto no seu WhatsApp.
+            Uma história. Uma música. Só sua. Para sempre.
           </p>
         </div>
 
