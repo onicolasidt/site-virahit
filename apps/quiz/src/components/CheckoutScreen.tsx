@@ -886,6 +886,8 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
         const pixCopiaCola = data.charge.brCode;
         sessionStorage.setItem('pixQRCodeUrl', pixQRCodeUrl);
         sessionStorage.setItem('pixCopiaCola', pixCopiaCola);
+        localStorage.setItem('pixQRCodeUrl', pixQRCodeUrl);
+        localStorage.setItem('pixCopiaCola', pixCopiaCola);
         setSession((prev) => ({ ...prev, pixQRCodeUrl, pixCopiaCola }));
         setPixState('active');
         setTimeLeft(30 * 60);
@@ -895,12 +897,6 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
     } catch (e: any) {
       setPixError('Erro de conexao. Verifique sua internet e tente novamente.');
     } finally {
-      // Garante loading minimo de 1.2s visivel — se a API for rapida demais,
-      // o React pode nunca renderizar o spinner visivelmente
-      const startTime = performance.now();
-      if (startTime < 1200) {
-        await new Promise(r => setTimeout(r, 1200));
-      }
       setPixGenerating(false);
     }
   };
