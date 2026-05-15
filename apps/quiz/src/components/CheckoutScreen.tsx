@@ -418,7 +418,7 @@ function CardForm({ onSwitchToPix, onPaymentConfirmed, pedidoId }: CardFormProps
   );
 }
 
-import { salvarPedido, buscarPedido, db } from '../lib/firebase';
+import { salvarPedido, buscarPedido, buscarPedidoPorCodigoCurto, db } from '../lib/firebase';
 import { doc, onSnapshot, getDoc } from 'firebase/firestore';
 
 function getWhatsAppUrl(session: SessionData) {
@@ -449,7 +449,6 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
   const [redirectCountdown, setRedirectCountdown] = useState<number | null>(null);
   const [pixGenerating, setPixGenerating] = useState(false); // false — handleRegeneratePix define true quando inicia
   const [pixError, setPixError] = useState<string | null>(null);
-  const [pixRequested, setPixRequested] = useState(false);
   const [dataLoaded, setDataLoaded] = useState(false); // impede EAGER PIX de disparar antes do loadData() terminar
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -463,15 +462,37 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
       const urlPedidoId = params.get('pedido');
 
       if (urlPedidoId) {
-        // Código curto (VH-XXXXXX) — buscar o ID real no localStorage
-        const idParaBuscar = urlPedidoId.startsWith('VH-')
-          ? (localStorage.getItem('idPedido') || urlPedidoId)
-          : urlPedidoId;
+        // Código curto (VH-XXXXXX) ou ID real
+        let idParaBuscar = urlPedidoId;
+        let isCodigoCurto = urlPedidoId.startsWith('VH-');
 
-        const data = await buscarPedido(idParaBuscar);
+        if (isCodigoCurto) {
+          // Primeiro: tentar achar no localStorage (mesmo dispositivo)
+          const idReal = localStorage.getItem('idPedido');
+          if (idReal) idParaBuscar = idReal;
+        }
+
+        let data = await buscarPedido(idParaBuscar);
+
+        // Se não achou e é código curto, buscar pelo campo codigoCurto no Firestore
+        if (!data && isCodigoCurto) {
+          data = await buscarPedidoPorCodigoCurto(urlPedidoId);
+          if (data) {
+            // Achou pelo código curto — usar o ID real do documento
+            idParaBuscar = (data as any).idPedido || idParaBuscar;
+          }
+        }
+
         if (data) {
-          // Mapear campos Firestore (estilo/voz/genero) para SessionData (estiloMusical/vozMusical/generoDestinatario)
           const p = data as any;
+
+          // Pedido já pago? Redirecionar para quiz
+          if (p.status === 'pago') {
+            window.location.href = window.location.pathname;
+            return;
+          }
+
+          // Mapear campos Firestore (estilo/voz/genero) para SessionData
           setSession({
             nome: p.nome || '',
             generoDestinatario: p.genero === 'F' ? 'F' : 'M',
@@ -511,7 +532,7 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
         }
       }
 
-      const get = (key: string) => localStorage.getItem(key) ?? sessionStorage.getItem(key) ?? '';
+      const get = (key: string) => localStorage.getItem(key) ?? '';
       let quizData: any = {};
       try {
         const draft = localStorage.getItem('virahit_quiz_draft');
@@ -881,7 +902,6 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
         const errorMsg = errorData.error || (res.status === 429 ? 'Muitas tentativas, aguarde.' : 'Erro ao gerar PIX.');
         setPixError(errorMsg);
         setPixGenerating(false);
-        setPixRequested(false);
         return;
       }
 
@@ -889,8 +909,6 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
       if (data.charge && data.charge.brCode) {
         const pixQRCodeUrl = data.charge.qrCodeImage || data.charge.paymentLinkUrl;
         const pixCopiaCola = data.charge.brCode;
-        sessionStorage.setItem('pixQRCodeUrl', pixQRCodeUrl);
-        sessionStorage.setItem('pixCopiaCola', pixCopiaCola);
         localStorage.setItem('pixQRCodeUrl', pixQRCodeUrl);
         localStorage.setItem('pixCopiaCola', pixCopiaCola);
         setSession((prev) => ({ ...prev, pixQRCodeUrl, pixCopiaCola }));
@@ -1044,7 +1062,6 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
                     <button
                       type="button"
                       onClick={async () => {
-                        setPixRequested(true);
                         await handleRegeneratePix();
                       }}
                       className="flex items-center justify-center gap-2 w-full h-[56px] rounded-full bg-[#33A854] text-white font-bold text-[15px] uppercase tracking-wide hover:bg-[#2d954b] active:scale-[0.98] transition-all duration-200 mt-2 shadow-[0_8px_20px_rgba(51,168,84,0.3)]"

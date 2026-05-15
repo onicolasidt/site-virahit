@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore, doc, setDoc, getDoc } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
@@ -20,6 +20,19 @@ export async function buscarPedido(pedidoId: string) {
     return { idPedido: pedidoId, ...snap.data() };
   } catch (err) {
     console.error('Erro ao buscar no Firestore', err);
+    return null;
+  }
+}
+
+export async function buscarPedidoPorCodigoCurto(codigoCurto: string) {
+  try {
+    const q = query(collection(db, 'pedidos'), where('codigoCurto', '==', codigoCurto));
+    const snap = await getDocs(q);
+    if (snap.empty) return null;
+    const docSnap = snap.docs[0];
+    return { idPedido: docSnap.id, ...docSnap.data() };
+  } catch (err) {
+    console.error('Erro ao buscar por codigoCurto no Firestore', err);
     return null;
   }
 }

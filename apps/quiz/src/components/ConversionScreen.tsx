@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, RefObject } from 'react';
 import { resolverGenero } from './Quiz';
-import { db } from '../lib/firebase';
+import { db, salvarPedido } from '../lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { AUDIO_EXEMPLOS_CONVERSAO } from '../lib/audioExemplos';
 
@@ -178,6 +178,9 @@ newErrors.email = 'Digite um e-mail válido';
       // Código visual curto: VH- + primeiros 6 chars do ID (ex: VH-9avDFo)
       const codigoCurto = 'VH-' + pedidoRef.id.slice(0, 6);
       localStorage.setItem('codigoPedido', codigoCurto);
+
+      // Salvar codigoCurto no Firestore para busca em outros dispositivos
+      await salvarPedido(pedidoRef.id, { codigoCurto });
 
       // Escrever código curto na URL — mais legível, menos intimidador
       window.history.replaceState(null, '', '/quiz/?pedido=' + codigoCurto);
