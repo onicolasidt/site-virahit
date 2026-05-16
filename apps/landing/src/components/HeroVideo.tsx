@@ -70,7 +70,7 @@ export default function HeroVideo() {
           {/* Overlay de clique */}
           <button
             onClick={handlePlay}
-            className="absolute inset-0 flex flex-col items-center justify-center gap-3 rounded-[1.25rem] cursor-pointer group"
+            className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 rounded-[1.25rem] cursor-pointer group"
             style={{
               background: 'linear-gradient(to top, rgba(44,93,99,0.55) 0%, rgba(44,93,99,0.15) 50%, transparent 100%)',
             }}
