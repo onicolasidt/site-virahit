@@ -314,11 +314,12 @@ app.post("/api/criar-pedido-com-pix", async (req: any, res: any) => {
     return res.status(429).json({ error: "Muitas requisições. Aguarde um momento." });
   }
 
-  try {
+    try {
     const {
       nome, estilo, voz, genero,
       compradorNome, compradorWhatsApp, compradorEmail,
-      campoA, campoB, campoC, campoCOutro, vinculo
+      campoA, campoB, campoC, campoCOutro, vinculo,
+      audioBlobs, audioNome, audioCampoA, audioCampoB, audioCampoCOutro
     } = req.body;
 
     if (!nome || !compradorNome || !compradorWhatsApp) {
@@ -349,6 +350,12 @@ app.post("/api/criar-pedido-com-pix", async (req: any, res: any) => {
       status: 'pendente',
       gateway: 'stripe',
       criadoEm: agora,
+      // Áudios gravados no quiz
+      ...(audioBlobs ? { audioBlobs } : {}),
+      ...(audioNome ? { audioNome } : {}),
+      ...(audioCampoA ? { audioCampoA } : {}),
+      ...(audioCampoB ? { audioCampoB } : {}),
+      ...(audioCampoCOutro ? { audioCampoCOutro } : {}),
     });
 
     log('INFO', 'FIREBASE', `Pedido ${pedidoId} criado com código curto ${codigoCurto}`, { requestId });

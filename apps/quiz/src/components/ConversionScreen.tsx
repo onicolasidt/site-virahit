@@ -144,11 +144,19 @@ newErrors.email = 'Digite um e-mail válido';
 
     try {
       // NOVO: Cria pedido + gera PIX no servidor (evita delay no checkout)
+      
+      // Recuperar áudios do localStorage para enviar ao servidor
+      let audioBlobs: Record<string, string> = {};
+      try {
+        audioBlobs = JSON.parse(localStorage.getItem('virahit_audio_blobs') || '{}');
+      } catch { }
+      
       const pedidoPayload = {
         ...data,
         compradorNome: nome,
         compradorWhatsApp: '55' + cleanPhone(whatsapp).replace(/^55/, ''),
         compradorEmail: email,
+        ...(Object.keys(audioBlobs).length > 0 ? { audioBlobs } : {}),
       };
       
       const response = await fetch('/api/criar-pedido-com-pix', {
