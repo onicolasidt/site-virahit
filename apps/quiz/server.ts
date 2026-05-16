@@ -129,7 +129,32 @@ app.post("/api/pix", async (req: any, res: any) => {
 
     if (!WOOVI_APP_ID) {
       log('ERROR', 'PIX', 'WOOVI_APP_ID não configurado', { requestId });
-      return res.status(500).json({ error: "WOOVI_APP_ID não configurado." });
+      return res.status(500).json({ error: "WOOVI_APP_ID não configurada." });
+    }
+
+    // FIX: Verificar se pedido já tem PIX no Firestore antes de chamar Woovi
+    // Isso evita criar PIX duplicado quando o endpoint /api/criar-pedido-com-pix já gerou um
+    try {
+      const pedidoDoc = await getDoc(doc(db, "pedidos", pedidoId));
+      if (pedidoDoc.exists()) {
+        const pedidoData = pedidoDoc.data();
+        if (pedidoData.pixCopiaCola && pedidoData.pixCriadoEm) {
+          log('INFO', 'PIX', `Pedido ${pedidoId} já tem PIX no Firestore — retornando dados existentes`, { requestId });
+          return res.json({
+            success: true,
+            charge: {
+              brCode: pedidoData.pixCopiaCola,
+              qrCodeImage: pedidoData.pixQRCodeUrl,
+              correlationID: pedidoId,
+              status: 'ACTIVE',
+            }
+          });
+        }
+      }
+    } catch (fbErr: any) {
+      log('WARN', 'PIX', `Falha ao verificar pedido no Firestore para ${pedidoId} — seguindo com Woovi`, {
+        requestId, error: errorPayload(fbErr)
+      });
     }
 
     // Extrair dados do cliente — compradorNome tem prioridade sobre nome do homenageado
@@ -443,7 +468,16 @@ app.post("/api/webhook/pix", async (req: any, res: any) => {
 
     const charge = payload?.charge;
     if ((charge && charge.status === "COMPLETED") || payload?.event === "OPENPIX:CHARGE_COMPLETED") {
-      const pedidoId = charge?.correlationID;
+      // FIX: Extrair pedidoId original do correlationID (remove sufixo -timestamp se existir)
+      // correlationID pode ser "pedidoId" ou "pedidoId-1234567890123" quando houve retentativa
+      let pedidoId = charge?.correlationID;
+      if (pedidoId) {
+        const match = pedidoId.match(/^(.+)-\d{13}$/);
+        if (match) {
+          log('INFO', 'WEBHOOK', `correlationID ${pedidoId} tem sufixo de retentativa — extraindo pedidoId original: ${match[1]}`, { requestId });
+          pedidoId = match[1];
+        }
+      }
 
       if (pedidoId) {
         await setDoc(doc(db, "pedidos", pedidoId), {
