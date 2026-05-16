@@ -100,9 +100,9 @@ export default function Home() {
             <div className="flex flex-col items-center gap-4 w-full">
               <a
                 href="/quiz"
-                className="group w-full max-w-[480px] bg-[var(--gold)] text-white heading-font text-lg py-5 px-8 rounded-full shadow-xl hover:scale-105 hover:shadow-2xl hover:gold-glow active:scale-95 transition-all duration-200 flex items-center justify-center gap-3"
+                className="group w-full max-w-[480px] bg-[var(--gold)] text-white heading-font text-base sm:text-lg py-5 px-4 sm:px-8 rounded-full shadow-xl hover:scale-105 hover:shadow-2xl hover:gold-glow active:scale-95 transition-all duration-200 flex items-center justify-center gap-3"
               >
-                <span>Criar Minha Música por R$47</span>
+                <span className="whitespace-nowrap">Criar Minha Música por R$47</span>
                 <ArrowRight className="w-6 h-6 shrink-0 cta-arrow" />
               </a>
               <div className="text-[var(--teal)] text-base font-medium tracking-tight text-center opacity-70">
