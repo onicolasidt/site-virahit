@@ -450,7 +450,6 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
   const [pixGenerating, setPixGenerating] = useState(false); // false — handleRegeneratePix define true quando inicia
   const [pixError, setPixError] = useState<string | null>(null);
   const [dataLoaded, setDataLoaded] = useState(false); // impede EAGER PIX de disparar antes do loadData() terminar
-  const [checkingPaidStatus, setCheckingPaidStatus] = useState(false); // evita flash de checkout enquanto verifica Firestore
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const redirectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -461,98 +460,10 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
     async function loadData() {
       const params = new URLSearchParams(window.location.search);
       const urlPedidoId = params.get('pedido');
+      const urlData = params.get('d');
 
-      if (urlPedidoId) {
-        // Busca no Firestore — mostrar loading enquanto verifica
-        setCheckingPaidStatus(true);
-        // Código curto (VH-XXXXXX) ou ID real
-        let idParaBuscar = urlPedidoId;
-        let isCodigoCurto = urlPedidoId.startsWith('VH-');
-
-        if (isCodigoCurto) {
-          // Primeiro: tentar achar no localStorage (mesmo dispositivo)
-          const idReal = localStorage.getItem('idPedido');
-          if (idReal) idParaBuscar = idReal;
-        }
-
-        let data = await buscarPedido(idParaBuscar);
-
-        // Se não achou e é código curto, buscar pelo campo codigoCurto no Firestore
-        if (!data && isCodigoCurto) {
-          data = await buscarPedidoPorCodigoCurto(urlPedidoId);
-          if (data) {
-            // Achou pelo código curto — usar o ID real do documento
-            idParaBuscar = (data as any).idPedido || idParaBuscar;
-          }
-        }
-
-        if (data) {
-          const p = data as any;
-          // Pedido já pago? Mostrar tela de obrigado
-          if (p.status === 'pago') {
-            setSession({
-              nome: p.nome || '',
-              generoDestinatario: p.genero === 'F' ? 'F' : 'M',
-              estiloMusical: p.estilo || p.estiloMusical || '',
-              vozMusical: p.voz || p.vozMusical || '',
-              compradorNome: p.compradorNome || '',
-              compradorWhatsApp: p.compradorWhatsApp || '',
-              compradorEmail: p.compradorEmail || '',
-              idPedido: idParaBuscar,
-              pixQRCodeUrl: p.pixQRCodeUrl || '',
-              pixCopiaCola: p.pixCopiaCola || '',
-              dataEntregaGarantida: p.dataEntregaGarantida || '',
-            });
-            setPageState('confirmed');
-            setRedirectCountdown(null); // não redireciona automaticamente
-            setCheckingPaidStatus(false);
-            return;
-          }
-
-          // Mapear campos Firestore (estilo/voz/genero) para SessionData
-          setSession({
-            nome: p.nome || '',
-            generoDestinatario: p.genero === 'F' ? 'F' : 'M',
-            estiloMusical: p.estilo || p.estiloMusical || '',
-            vozMusical: p.voz || p.vozMusical || '',
-            compradorNome: p.compradorNome || '',
-            compradorWhatsApp: p.compradorWhatsApp || '',
-            compradorEmail: p.compradorEmail || '',
-            idPedido: idParaBuscar,
-            pixQRCodeUrl: p.pixQRCodeUrl || '',
-            pixCopiaCola: p.pixCopiaCola || '',
-            dataEntregaGarantida: p.dataEntregaGarantida || '',
-            ...(p.campoA !== undefined && { campoA: p.campoA }),
-            ...(p.campoB !== undefined && { campoB: p.campoB }),
-            ...(p.campoC !== undefined && { campoC: p.campoC }),
-            ...(p.campoCOutro !== undefined && { campoCOutro: p.campoCOutro }),
-            ...(p.vinculo !== undefined && { vinculo: p.vinculo }),
-            ...(p.genero !== undefined && { genero: p.genero }),
-          });
-          // Calcular tempo restante real do PIX com base em pixCriadoEm
-          if (p.pixCopiaCola && p.pixCriadoEm) {
-            const criadoEm = new Date(p.pixCriadoEm).getTime();
-            const expiresAt = criadoEm + 30 * 60 * 1000;
-            const segundosRestantes = Math.floor((expiresAt - Date.now()) / 1000);
-            if (segundosRestantes <= 0) {
-              setPixState('expired');
-              setTimeLeft(0);
-            } else {
-              setPixState('active');
-              setTimeLeft(segundosRestantes);
-            }
-          }
-          // PIX já existe no Firestore — não precisa gerar, para o loading
-          if (p.pixCopiaCola) setPixGenerating(false);
-          setCheckingPaidStatus(false);
-          setDataLoaded(true);
-          return;
-        }
-      }
-
-      // Nenhum pedido encontrado via URL — prossegue com localStorage
-      setCheckingPaidStatus(false);
-
+      // ── FASE 1: Renderização INSTANTÂNEA (sem bloquear) ──
+      // Primeiro: tentar carregar dados do localStorage ou URL
       const get = (key: string) => localStorage.getItem(key) ?? '';
       let quizData: any = {};
       try {
@@ -560,115 +471,154 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
         if (draft) quizData = JSON.parse(draft);
       } catch { }
 
-      const raw = quizData.genero || get('generoDestinatario') || get('compradorGenero'); 
+      // Se tem dados codificados na URL (?d=), decodificar
+      let urlDecodedData: any = {};
+      if (urlData) {
+        try {
+          urlDecodedData = JSON.parse(decodeURIComponent(urlData));
+        } catch { }
+      }
+
+      // Tentar pegar pedidoData do localStorage (salvo pelo novo ConversionScreen)
+      let pedidoData: any = {};
+      try {
+        const pd = localStorage.getItem('pedidoData');
+        if (pd) pedidoData = JSON.parse(pd);
+      } catch { }
+
       // Pegar áudios em base64 do localStorage
       let audioBlobs: Record<string, string> = {};
       try {
         audioBlobs = JSON.parse(localStorage.getItem('virahit_audio_blobs') || '{}');
       } catch { }
 
-      const storedIdPedido = get('idPedido');
+      const raw = quizData.genero || get('generoDestinatario') || get('compradorGenero'); 
 
-      // Verificar se o idPedido salvo no localStorage ainda e valido (nao pago/expirado)
-      // Se estiver pago ou for muito antigo, limpar e tratar como sessao nova
-      if (storedIdPedido && storedIdPedido !== 'demo-pedido') {
+      // Monta sessão inicial com dados disponíveis (localStorage > URL > demo)
+      const storedIdPedido = get('idPedido');
+      const effectiveIdPedido = urlPedidoId || storedIdPedido || 'demo-pedido';
+
+      const initialSession = {
+        nome: pedidoData.nome || urlDecodedData.nome || quizData.nome || get('compradorNome') || '',
+        generoDestinatario: (pedidoData.genero === 'F' || quizData.genero === 'F' || raw === 'F' ? 'F' : 'M') as 'F' | 'M',
+        estiloMusical: pedidoData.estilo || quizData.estilo || get('estiloMusical') || '',
+        vozMusical: pedidoData.voz || quizData.voz || get('vozMusical') || '',
+        compradorNome: pedidoData.compradorNome || urlDecodedData.compradorNome || get('compradorNome') || '',
+        compradorWhatsApp: pedidoData.compradorWhatsApp || urlDecodedData.compradorWhatsApp || get('compradorWhatsApp') || '',
+        compradorEmail: pedidoData.compradorEmail || urlDecodedData.compradorEmail || get('compradorEmail') || '',
+        idPedido: effectiveIdPedido,
+        pixQRCodeUrl: pedidoData.pixQRCodeUrl || get('pixQRCodeUrl') || '',
+        pixCopiaCola: pedidoData.pixCopiaCola || get('pixCopiaCola') || '',
+        dataEntregaGarantida: get('dataEntregaGarantida'),
+        campoA: pedidoData.campoA || quizData.campoA || '',
+        campoB: pedidoData.campoB || quizData.campoB || '',
+        campoC: pedidoData.campoC || quizData.campoC || '',
+        campoCOutro: pedidoData.campoCOutro || quizData.campoCOutro || '',
+        vinculo: pedidoData.vinculo || quizData.vinculo || '',
+        genero: pedidoData.genero || quizData.genero || '',
+        audioNome: quizData.audioNome || [],
+        audioCampoA: quizData.audioCampoA || [],
+        audioCampoB: quizData.audioCampoB || [],
+        audioCampoCOutro: quizData.audioCampoCOutro || [],
+        ...(Object.keys(audioBlobs).length > 0 ? { audioBlobs } : {}),
+      };
+
+      setSession(initialSession);
+      setDataLoaded(true);
+
+      // Se já tem PIX no localStorage, marca como gerado
+      if (initialSession.pixCopiaCola) setPixGenerating(false);
+
+      // ── FASE 2: Sincronização em BACKGROUND com Firestore ──
+      // Só faz busca se tiver um ID real (não demo)
+      if (effectiveIdPedido && effectiveIdPedido !== 'demo-pedido') {
         try {
-          const pedidoSalvo = await buscarPedido(storedIdPedido);
-          if (pedidoSalvo && (pedidoSalvo as any).status === 'pago') {
-            // Pedido ja foi pago em outra sessao — limpar tudo e comecar do zero
-            ['idPedido','pixQRCodeUrl','pixCopiaCola','dataEntregaGarantida',
-             'compradorNome','compradorWhatsApp','generoDestinatario','estiloMusical','vozMusical',
-             'virahit_quiz_draft','virahit_audio_blobs'
-            ].forEach(k => localStorage.removeItem(k));
-            // Redirecionar de volta ao quiz
-            window.location.href = window.location.pathname;
-            return;
+          let idParaBuscar = effectiveIdPedido;
+          const isCodigoCurto = effectiveIdPedido.startsWith('VH-');
+
+          if (isCodigoCurto) {
+            // Se é código curto, tentar achar o ID real no localStorage
+            const idReal = localStorage.getItem('idPedido');
+            if (idReal && !idReal.startsWith('VH-')) idParaBuscar = idReal;
           }
-          // Se o pedido existe no Firestore e NÃO está pago, usar os dados DELE
-          // (ConversionsScreen salvou tudo no addDoc — nome, estilo, voz, gênero, etc.)
-          // Isso evita o bug do "nome antigo" quando virahit_quiz_draft foi deletado
-          if (pedidoSalvo) {
-            const p = pedidoSalvo as any;
-            setSession({
-              nome: p.nome || '',
+
+          let data = await buscarPedido(idParaBuscar);
+
+          // Se não achou e é código curto, buscar pelo campo codigoCurto
+          if (!data && isCodigoCurto) {
+            data = await buscarPedidoPorCodigoCurto(effectiveIdPedido);
+            if (data) {
+              idParaBuscar = (data as any).idPedido || idParaBuscar;
+            }
+          }
+
+          if (data) {
+            const p = data as any;
+
+            // Pedido já pago? Mostrar tela de obrigado
+            if (p.status === 'pago') {
+              setSession({
+                nome: p.nome || initialSession.nome,
+                generoDestinatario: p.genero === 'F' ? 'F' : 'M',
+                estiloMusical: p.estilo || p.estiloMusical || initialSession.estiloMusical,
+                vozMusical: p.voz || p.vozMusical || initialSession.vozMusical,
+                compradorNome: p.compradorNome || initialSession.compradorNome,
+                compradorWhatsApp: p.compradorWhatsApp || initialSession.compradorWhatsApp,
+                compradorEmail: p.compradorEmail || initialSession.compradorEmail,
+                idPedido: idParaBuscar,
+                pixQRCodeUrl: p.pixQRCodeUrl || '',
+                pixCopiaCola: p.pixCopiaCola || '',
+                dataEntregaGarantida: p.dataEntregaGarantida || '',
+              });
+              setPageState('confirmed');
+              setRedirectCountdown(null);
+              return;
+            }
+
+            // Atualiza sessão com dados mais recentes do Firestore
+            const updatedSession = {
+              nome: p.nome || initialSession.nome,
               generoDestinatario: p.genero === 'F' ? 'F' : 'M',
-              estiloMusical: p.estilo || '',
-              vozMusical: p.voz || '',
-              compradorNome: p.compradorNome || '',
-              compradorWhatsApp: p.compradorWhatsApp || '',
-              compradorEmail: p.compradorEmail || '',
-              idPedido: storedIdPedido,
-              pixQRCodeUrl: p.pixQRCodeUrl || '',
-              pixCopiaCola: p.pixCopiaCola || '',
-              dataEntregaGarantida: p.dataEntregaGarantida || '',
+              estiloMusical: p.estilo || p.estiloMusical || initialSession.estiloMusical,
+              vozMusical: p.voz || p.vozMusical || initialSession.vozMusical,
+              compradorNome: p.compradorNome || initialSession.compradorNome,
+              compradorWhatsApp: p.compradorWhatsApp || initialSession.compradorWhatsApp,
+              compradorEmail: p.compradorEmail || initialSession.compradorEmail,
+              idPedido: idParaBuscar,
+              pixQRCodeUrl: p.pixQRCodeUrl || initialSession.pixQRCodeUrl,
+              pixCopiaCola: p.pixCopiaCola || initialSession.pixCopiaCola,
+              dataEntregaGarantida: p.dataEntregaGarantida || initialSession.dataEntregaGarantida,
               ...(p.campoA !== undefined && { campoA: p.campoA }),
               ...(p.campoB !== undefined && { campoB: p.campoB }),
               ...(p.campoC !== undefined && { campoC: p.campoC }),
               ...(p.campoCOutro !== undefined && { campoCOutro: p.campoCOutro }),
               ...(p.vinculo !== undefined && { vinculo: p.vinculo }),
               ...(p.genero !== undefined && { genero: p.genero }),
-            });
+            };
+            setSession(updatedSession);
 
-            // Calcular tempo restante real do PIX com base em pixCriadoEm
+            // Calcular tempo restante real do PIX
             if (p.pixCopiaCola && p.pixCriadoEm) {
               const criadoEm = new Date(p.pixCriadoEm).getTime();
-              const expiresAt = criadoEm + 30 * 60 * 1000; // 30 minutos
+              const expiresAt = criadoEm + 30 * 60 * 1000;
               const segundosRestantes = Math.floor((expiresAt - Date.now()) / 1000);
               if (segundosRestantes <= 0) {
-                // PIX já expirou — mostrar estado expirado
                 setPixState('expired');
                 setTimeLeft(0);
               } else {
-                // PIX ainda válido — cronômetro de onde parou
                 setPixState('active');
                 setTimeLeft(segundosRestantes);
               }
             }
 
-            // PIX já existe — não precisa gerar, para o loading
+            // PIX existe no Firestore — não precisa gerar
             if (p.pixCopiaCola) setPixGenerating(false);
-            setDataLoaded(true);
-            return;
           }
-        } catch { /* se falhar a busca, continua normalmente */ }
+        } catch (e) {
+          // Falha silenciosa — dados do localStorage já estão renderizados
+          console.warn('Sincronização Firestore falhou:', e);
+        }
       }
-
-      const newSession = {
-        nome: quizData.nome || get('compradorNome'), 
-        generoDestinatario: (raw === 'F' ? 'F' : 'M') as 'F' | 'M',
-        estiloMusical: quizData.estilo || get('estiloMusical'), 
-        vozMusical: quizData.voz || get('vozMusical'),
-        compradorNome: get('compradorNome'), 
-        compradorWhatsApp: get('compradorWhatsApp'),
-        idPedido: storedIdPedido || 'demo-pedido', 
-        pixQRCodeUrl: get('pixQRCodeUrl'),
-        pixCopiaCola: get('pixCopiaCola'), 
-        dataEntregaGarantida: get('dataEntregaGarantida'),
-        // Campos de áudio do quiz
-        campoA: quizData.campoA || '',
-        campoB: quizData.campoB || '',
-        campoC: quizData.campoC || '',
-        campoCOutro: quizData.campoCOutro || '',
-        vinculo: quizData.vinculo || '',
-        genero: quizData.genero || '',
-        // IDs das gravações
-        audioNome: quizData.audioNome || [],
-        audioCampoA: quizData.audioCampoA || [],
-        audioCampoB: quizData.audioCampoB || [],
-        audioCampoCOutro: quizData.audioCampoCOutro || [],
-        // Base64 dos áudios gravados
-        ...(Object.keys(audioBlobs).length > 0 ? { audioBlobs } : {}),
-      };
-      
-      setSession(newSession);
-
-      if (newSession.idPedido !== 'demo-pedido') {
-        await salvarPedido(newSession.idPedido, newSession);
-      }
-
-      // Se já tem PIX no localStorage, para o loading
-      if (newSession.pixCopiaCola) setPixGenerating(false);
-      setDataLoaded(true);
     }
 
     loadData();
@@ -960,22 +910,7 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
 
   const stripeOptionsCard: StripeElementsOptions | undefined = clientSecret
     ? { clientSecret, appearance: stripeAppearance, locale: 'pt-BR' }
-    : undefined;
-
-  // Loading: nao renderizar checkout nem confirmed ate verificar status no Firestore
-  if (checkingPaidStatus) {
-    return (
-      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#F4EEDC] px-6">
-        <img src="/nova-logo-virahit.svg" alt="ViraHit" className="h-8 w-auto mb-8" />
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-10 h-10 border-[3px] border-[var(--teal)]/20 border-t-[var(--teal)] rounded-full animate-spin" />
-          <p className="text-[var(--teal)]/60 text-[15px]" style={{ fontFamily: 'Merriweather, serif' }}>
-            Verificando seu pedido...
-          </p>
-        </div>
-      </div>
-    );
-  }
+      : undefined;
 
   if (pageState === 'confirmed') {
     return (

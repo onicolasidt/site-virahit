@@ -1,7 +1,5 @@
 import { useState, useEffect, useRef, RefObject } from 'react';
 import { resolverGenero } from './Quiz';
-import { db, salvarPedido } from '../lib/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { AUDIO_EXEMPLOS_CONVERSAO } from '../lib/audioExemplos';
 
 interface ConversionScreenProps {
@@ -145,45 +143,65 @@ newErrors.email = 'Digite um e-mail válido';
     setIsSubmitting(true);
 
     try {
-      // Salva TUDO: dados do Quiz e do comprador num único registro central!
+      // NOVO: Cria pedido + gera PIX no servidor (evita delay no checkout)
       const pedidoPayload = {
         ...data,
         compradorNome: nome,
         compradorWhatsApp: '55' + cleanPhone(whatsapp).replace(/^55/, ''),
         compradorEmail: email,
+      };
+      
+      const response = await fetch('/api/criar-pedido-com-pix', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(pedidoPayload),
+      });
+      
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || `Erro ${response.status}`);
+      }
+      
+      const result = await response.json();
+      const pedidoId = result.pedidoId;
+      const codigoCurto = result.codigoCurto;
+
+      // Salva o idPedido para que o Checkout use
+      localStorage.setItem('idPedido', pedidoId);
+      
+      // Salva os dados do pedido completos para renderização imediata
+      const fullPedidoData = {
+        ...pedidoPayload,
+        id: pedidoId,
+        codigoCurto,
         status: 'pendente',
         gateway: 'stripe',
-        criadoEm: serverTimestamp()
+        pixGerado: result.pixGerado,
       };
-      const withTimeout = (p: Promise<any>, ms: number) =>
-        Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]);
-      let pedidoRef: any;
-      try {
-        pedidoRef = await withTimeout(addDoc(collection(db, 'pedidos'), pedidoPayload), 10000);
-      } catch (e1: any) {
-        // Retry automatico 1x apos 2s
-        await new Promise(r => setTimeout(r, 2000));
-        pedidoRef = await withTimeout(addDoc(collection(db, 'pedidos'), pedidoPayload), 10000);
-      }
-
-
+      localStorage.setItem('pedidoData', JSON.stringify(fullPedidoData));
       
-      // Salva o idPedido para que o Checkout use
-      localStorage.setItem('idPedido', pedidoRef.id);
+      // Se PIX foi gerado no servidor, salva para renderização instantânea
+      if (result.pixGerado && result.pix) {
+        localStorage.setItem('pixData', JSON.stringify({
+          copiaCola: result.pix.copiaCola,
+          qrCodeUrl: result.pix.qrCodeUrl,
+          criadoEm: result.pix.criadoEm,
+        }));
+      }
 
       // Limpar o draft do quiz — pedido criado, dados velhos nao devem poluir proxima sessao
       localStorage.removeItem('virahit_quiz_draft');
       localStorage.removeItem('virahit_audio_blobs');
-
-      // Código visual curto: VH- + primeiros 6 chars do ID (ex: VH-9avDFo)
-      const codigoCurto = 'VH-' + pedidoRef.id.slice(0, 6);
       localStorage.setItem('codigoPedido', codigoCurto);
 
-      // Salvar codigoCurto no Firestore para busca em outros dispositivos
-      await salvarPedido(pedidoRef.id, { codigoCurto });
-
-      // Escrever código curto na URL — mais legível, menos intimidador
-      window.history.replaceState(null, '', '/quiz/?pedido=' + codigoCurto);
+      // URL com ID real + dados codificados (para fallback em outros dispositivos)
+      const urlData = encodeURIComponent(JSON.stringify({
+        nome: data.nome,
+        compradorNome: nome,
+        compradorWhatsApp: '55' + cleanPhone(whatsapp).replace(/^55/, ''),
+        compradorEmail: email,
+      }));
+      window.history.replaceState(null, '', `/quiz/?pedido=${pedidoId}&d=${urlData}`);
 
       setShowToast(false);
       onGoToCheckout();

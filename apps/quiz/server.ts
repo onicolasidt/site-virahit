@@ -5,7 +5,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { db } from "./src/lib/firebase";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, collection } from "firebase/firestore";
 import Stripe from 'stripe';
 import { log, generateRequestId, sanitize, errorPayload } from './src/lib/logger.js';
 
@@ -272,6 +272,145 @@ app.post("/api/pix", async (req: any, res: any) => {
       payload: sanitize(req.body),
     });
     res.status(500).json({ error: err.message });
+  }
+});
+
+// ==========================================
+// POST /api/criar-pedido-com-pix — Cria pedido + gera PIX no servidor
+// ==========================================
+app.post("/api/criar-pedido-com-pix", async (req: any, res: any) => {
+  const requestId = req._requestId ?? generateRequestId();
+  const startMs = req._startMs ?? Date.now();
+
+  // Rate limit por IP
+  const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
+  if (!checkRateLimit(clientIp, 20, 60000)) {
+    log('WARN', 'RATE_LIMIT', `criar-pedido-com-pix rate limit exceeded for IP ${clientIp}`, { requestId });
+    return res.status(429).json({ error: "Muitas requisições. Aguarde um momento." });
+  }
+
+  try {
+    const {
+      nome, estilo, voz, genero,
+      compradorNome, compradorWhatsApp, compradorEmail,
+      campoA, campoB, campoC, campoCOutro, vinculo
+    } = req.body;
+
+    if (!nome || !compradorNome || !compradorWhatsApp) {
+      log('WARN', 'VALIDATION', 'criar-pedido-com-pix: dados obrigatórios ausentes', { requestId });
+      return res.status(400).json({ error: "Dados obrigatórios ausentes" });
+    }
+
+    // 1. Cria pedido no Firestore
+    const pedidoRef = doc(collection(db, "pedidos"));
+    const pedidoId = pedidoRef.id;
+    const codigoCurto = 'VH-' + pedidoId.slice(0, 6);
+    const agora = new Date().toISOString();
+
+    await setDoc(pedidoRef, {
+      nome,
+      estilo,
+      voz,
+      genero,
+      compradorNome,
+      compradorWhatsApp,
+      compradorEmail: compradorEmail || '',
+      campoA: campoA || '',
+      campoB: campoB || '',
+      campoC: campoC || '',
+      campoCOutro: campoCOutro || '',
+      vinculo: vinculo || '',
+      codigoCurto,
+      status: 'pendente',
+      gateway: 'stripe',
+      criadoEm: agora,
+    });
+
+    log('INFO', 'FIREBASE', `Pedido ${pedidoId} criado com código curto ${codigoCurto}`, { requestId });
+
+    // 2. Tenta gerar PIX na Woovi (com timeout de 5s)
+    let pixData = null;
+    let pixGerado = false;
+
+    if (WOOVI_APP_ID) {
+      try {
+        const pixController = new AbortController();
+        const pixTimeout = setTimeout(() => pixController.abort(), 5000);
+
+        const response = await fetch("https://api.woovi.com/api/v1/charge", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": WOOVI_APP_ID
+          },
+          body: JSON.stringify({
+            correlationID: pedidoId,
+            value: 100,
+            expiresIn: 1800,
+            comment: `ViraHit - Música ${nome}`,
+            customer: {
+              name: compradorNome || nome,
+              email: compradorEmail || `${pedidoId}@virahit.com`,
+              phone: compradorWhatsApp
+            }
+          }),
+          signal: pixController.signal,
+        });
+        clearTimeout(pixTimeout);
+
+        if (response.ok) {
+          const data = await response.json();
+          pixData = data.charge;
+
+          // Salva PIX no Firestore
+          await setDoc(pedidoRef, {
+            pixCopiaCola: pixData.brCode,
+            pixQRCodeUrl: pixData.qrCodeImage || pixData.paymentLinkUrl,
+            pixCriadoEm: agora,
+          }, { merge: true });
+
+          pixGerado = true;
+          log('INFO', 'PIX', `PIX gerado no servidor para ${pedidoId}`, { requestId });
+        } else {
+          log('WARN', 'PIX', `Woovi retornou ${response.status} para ${pedidoId}`, { requestId });
+        }
+      } catch (pixErr: any) {
+        log('WARN', 'PIX', `Woovi falhou ao gerar PIX para ${pedidoId}: ${pixErr.message}`, { requestId });
+      }
+    }
+
+    // 3. Retorna tudo para o frontend
+    const responsePayload: any = {
+      success: true,
+      pedidoId,
+      codigoCurto,
+      pixGerado,
+    };
+
+    if (pixGerado && pixData) {
+      responsePayload.pix = {
+        copiaCola: pixData.brCode,
+        qrCodeUrl: pixData.qrCodeImage || pixData.paymentLinkUrl,
+        criadoEm: agora,
+      };
+    }
+
+    log('INFO', 'SERVER', `Pedido ${pedidoId} criado ${pixGerado ? 'com PIX' : 'sem PIX'} em ${Date.now() - startMs}ms`, {
+      requestId,
+      durationMs: Date.now() - startMs,
+      meta: { pedidoId, codigoCurto, pixGerado }
+    });
+
+    res.json(responsePayload);
+
+  } catch (err: any) {
+    log('FATAL', 'SERVER', `Erro ao criar pedido: ${err.message}`, {
+      requestId,
+      durationMs: Date.now() - startMs,
+      error: errorPayload(err),
+      payload: sanitize(req.body),
+    });
+    res.status(500).json({ error: "Erro ao criar pedido. Tente novamente." });
   }
 });
 
