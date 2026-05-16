@@ -16,3 +16,4 @@ watchdog-*.json
 metadata.json
 firebase-blueprint.json
 .vercel
+uploads/

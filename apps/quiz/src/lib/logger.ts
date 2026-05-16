@@ -33,6 +33,7 @@ export type LogCategory =
   | 'FRONTEND_ERROR'
   | 'FRONTEND_ERROR_LOG'
   | 'RATE_LIMIT'
+  | 'AUDIO'
   | 'UNKNOWN';
 
 export interface LogEntry {

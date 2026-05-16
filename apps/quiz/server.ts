@@ -5,7 +5,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { db } from "./src/lib/firebase";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, collection } from "firebase/firestore";
 import Stripe from 'stripe';
 import { log, generateRequestId, sanitize, errorPayload } from './src/lib/logger.js';
 
@@ -129,7 +129,32 @@ app.post("/api/pix", async (req: any, res: any) => {
 
     if (!WOOVI_APP_ID) {
       log('ERROR', 'PIX', 'WOOVI_APP_ID não configurado', { requestId });
-      return res.status(500).json({ error: "WOOVI_APP_ID não configurado." });
+      return res.status(500).json({ error: "WOOVI_APP_ID não configurada." });
+    }
+
+    // FIX: Verificar se pedido já tem PIX no Firestore antes de chamar Woovi
+    // Isso evita criar PIX duplicado quando o endpoint /api/criar-pedido-com-pix já gerou um
+    try {
+      const pedidoDoc = await getDoc(doc(db, "pedidos", pedidoId));
+      if (pedidoDoc.exists()) {
+        const pedidoData = pedidoDoc.data();
+        if (pedidoData.pixCopiaCola && pedidoData.pixCriadoEm) {
+          log('INFO', 'PIX', `Pedido ${pedidoId} já tem PIX no Firestore — retornando dados existentes`, { requestId });
+          return res.json({
+            success: true,
+            charge: {
+              brCode: pedidoData.pixCopiaCola,
+              qrCodeImage: pedidoData.pixQRCodeUrl,
+              correlationID: pedidoId,
+              status: 'ACTIVE',
+            }
+          });
+        }
+      }
+    } catch (fbErr: any) {
+      log('WARN', 'PIX', `Falha ao verificar pedido no Firestore para ${pedidoId} — seguindo com Woovi`, {
+        requestId, error: errorPayload(fbErr)
+      });
     }
 
     // Extrair dados do cliente — compradorNome tem prioridade sobre nome do homenageado
@@ -276,6 +301,219 @@ app.post("/api/pix", async (req: any, res: any) => {
 });
 
 // ==========================================
+// Função: salvar áudios no VPS (base64 → arquivo)
+// ==========================================
+const UPLOADS_DIR = path.join(process.cwd(), 'uploads', 'audios');
+const MAX_AUDIOS_PER_PEDIDO = 10;
+const MAX_AUDIO_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
+const MAX_TOTAL_AUDIO_SIZE_BYTES = 20 * 1024 * 1024; // 20 MB
+
+async function salvarAudiosNoVPS(
+  audioBlobs: Record<string, string>,
+  codigoCurto: string,
+  requestId: string
+): Promise<Array<{ campo: string; path: string; size: number; gravadoEm: string }>> {
+  const audioFiles: Array<{ campo: string; path: string; size: number; gravadoEm: string }> = [];
+  const entries = Object.entries(audioBlobs);
+
+  if (entries.length > MAX_AUDIOS_PER_PEDIDO) {
+    log('WARN', 'AUDIO', `Limite de ${MAX_AUDIOS_PER_PEDIDO} áudios excedido para ${codigoCurto}: ${entries.length} recebidos`, { requestId });
+  }
+
+  const dir = path.join(UPLOADS_DIR, codigoCurto);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+
+  let totalSize = 0;
+  const agora = new Date().toISOString();
+
+  for (const [campo, base64Data] of entries.slice(0, MAX_AUDIOS_PER_PEDIDO)) {
+    const buffer = Buffer.from(base64Data, 'base64');
+
+    if (buffer.length > MAX_AUDIO_SIZE_BYTES) {
+      log('WARN', 'AUDIO', `Áudio ${campo} de ${codigoCurto} excede 5MB (${buffer.length} bytes) — descartado`, { requestId });
+      continue;
+    }
+
+    if (totalSize + buffer.length > MAX_TOTAL_AUDIO_SIZE_BYTES) {
+      log('WARN', 'AUDIO', `Tamanho total de áudios de ${codigoCurto} excede 20MB — ${campo} descartado`, { requestId });
+      continue;
+    }
+
+    const safeCampo = campo.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const fileName = `${safeCampo}.webm`;
+    const filePath = path.join(dir, fileName);
+    fs.writeFileSync(filePath, buffer);
+    totalSize += buffer.length;
+
+    audioFiles.push({
+      campo: safeCampo,
+      path: `audios/${codigoCurto}/${fileName}`,
+      size: buffer.length,
+      gravadoEm: agora,
+    });
+
+    log('INFO', 'AUDIO', `Áudio ${campo} salvo para ${codigoCurto} (${buffer.length} bytes)`, { requestId });
+  }
+
+  return audioFiles;
+}
+
+// ==========================================
+// POST /api/criar-pedido-com-pix — Cria pedido + gera PIX no servidor
+// ==========================================
+app.post("/api/criar-pedido-com-pix", async (req: any, res: any) => {
+  const requestId = req._requestId ?? generateRequestId();
+  const startMs = req._startMs ?? Date.now();
+
+  // Rate limit por IP
+  const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
+  if (!checkRateLimit(clientIp, 20, 60000)) {
+    log('WARN', 'RATE_LIMIT', `criar-pedido-com-pix rate limit exceeded for IP ${clientIp}`, { requestId });
+    return res.status(429).json({ error: "Muitas requisições. Aguarde um momento." });
+  }
+
+    try {
+    const {
+      nome, estilo, voz, genero,
+      compradorNome, compradorWhatsApp, compradorEmail,
+      campoA, campoB, campoC, campoCOutro, vinculo,
+      audioBlobs, audioNome, audioCampoA, audioCampoB, audioCampoCOutro
+    } = req.body;
+
+    if (!nome || !compradorNome || !compradorWhatsApp) {
+      log('WARN', 'VALIDATION', 'criar-pedido-com-pix: dados obrigatórios ausentes', { requestId });
+      return res.status(400).json({ error: "Dados obrigatórios ausentes" });
+    }
+
+    // 1. Gera ID do pedido e código curto
+    const pedidoRef = doc(collection(db, "pedidos"));
+    const pedidoId = pedidoRef.id;
+    const codigoCurto = 'VH-' + pedidoId.slice(0, 6);
+    const agora = new Date().toISOString();
+
+    // 2. Salvar áudios no VPS (se houver)
+    let audioFiles: Array<{ campo: string; path: string; size: number; gravadoEm: string }> = [];
+    if (audioBlobs && typeof audioBlobs === 'object' && Object.keys(audioBlobs).length > 0) {
+      audioFiles = await salvarAudiosNoVPS(audioBlobs, codigoCurto, requestId);
+    }
+
+    // 3. Cria pedido no Firestore
+    await setDoc(pedidoRef, {
+      nome,
+      estilo,
+      voz,
+      genero,
+      compradorNome,
+      compradorWhatsApp,
+      compradorEmail: compradorEmail || '',
+      campoA: campoA || '',
+      campoB: campoB || '',
+      campoC: campoC || '',
+      campoCOutro: campoCOutro || '',
+      vinculo: vinculo || '',
+      codigoCurto,
+      status: 'pendente',
+      gateway: 'stripe',
+      criadoEm: agora,
+      // audioBlobs salvo em arquivo no VPS — referência abaixo
+      ...(audioFiles.length > 0 ? { audioFiles } : {}),
+      ...(audioNome ? { audioNome } : {}),
+      ...(audioCampoA ? { audioCampoA } : {}),
+      ...(audioCampoB ? { audioCampoB } : {}),
+      ...(audioCampoCOutro ? { audioCampoCOutro } : {}),
+    });
+
+    log('INFO', 'FIREBASE', `Pedido ${pedidoId} criado com código curto ${codigoCurto}`, { requestId });
+
+    // 2. Tenta gerar PIX na Woovi (com timeout de 5s)
+    let pixData = null;
+    let pixGerado = false;
+
+    if (WOOVI_APP_ID) {
+      try {
+        const pixController = new AbortController();
+        const pixTimeout = setTimeout(() => pixController.abort(), 5000);
+
+        const response = await fetch("https://api.woovi.com/api/v1/charge", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": WOOVI_APP_ID
+          },
+          body: JSON.stringify({
+            correlationID: pedidoId,
+            value: 100,
+            expiresIn: 1800,
+            comment: `ViraHit - Música ${nome}`,
+            customer: {
+              name: compradorNome || nome,
+              email: compradorEmail || `${pedidoId}@virahit.com`,
+              phone: compradorWhatsApp
+            }
+          }),
+          signal: pixController.signal,
+        });
+        clearTimeout(pixTimeout);
+
+        if (response.ok) {
+          const data = await response.json();
+          pixData = data.charge;
+
+          // Salva PIX no Firestore
+          await setDoc(pedidoRef, {
+            pixCopiaCola: pixData.brCode,
+            pixQRCodeUrl: pixData.qrCodeImage || pixData.paymentLinkUrl,
+            pixCriadoEm: agora,
+          }, { merge: true });
+
+          pixGerado = true;
+          log('INFO', 'PIX', `PIX gerado no servidor para ${pedidoId}`, { requestId });
+        } else {
+          log('WARN', 'PIX', `Woovi retornou ${response.status} para ${pedidoId}`, { requestId });
+        }
+      } catch (pixErr: any) {
+        log('WARN', 'PIX', `Woovi falhou ao gerar PIX para ${pedidoId}: ${pixErr.message}`, { requestId });
+      }
+    }
+
+    // 3. Retorna tudo para o frontend
+    const responsePayload: any = {
+      success: true,
+      pedidoId,
+      codigoCurto,
+      pixGerado,
+    };
+
+    if (pixGerado && pixData) {
+      responsePayload.pix = {
+        copiaCola: pixData.brCode,
+        qrCodeUrl: pixData.qrCodeImage || pixData.paymentLinkUrl,
+        criadoEm: agora,
+      };
+    }
+
+    log('INFO', 'SERVER', `Pedido ${pedidoId} criado ${pixGerado ? 'com PIX' : 'sem PIX'} em ${Date.now() - startMs}ms`, {
+      requestId,
+      durationMs: Date.now() - startMs,
+      meta: { pedidoId, codigoCurto, pixGerado }
+    });
+
+    res.json(responsePayload);
+
+  } catch (err: any) {
+    log('FATAL', 'SERVER', `Erro ao criar pedido: ${err.message}`, {
+      requestId,
+      durationMs: Date.now() - startMs,
+      error: errorPayload(err),
+      payload: sanitize(req.body),
+    });
+    res.status(500).json({ error: "Erro ao criar pedido. Tente novamente." });
+  }
+});
+
+// ==========================================
 // POST /api/webhook/pix — Webhook Woovi
 // ==========================================
 app.post("/api/webhook/pix", async (req: any, res: any) => {
@@ -304,7 +542,16 @@ app.post("/api/webhook/pix", async (req: any, res: any) => {
 
     const charge = payload?.charge;
     if ((charge && charge.status === "COMPLETED") || payload?.event === "OPENPIX:CHARGE_COMPLETED") {
-      const pedidoId = charge?.correlationID;
+      // FIX: Extrair pedidoId original do correlationID (remove sufixo -timestamp se existir)
+      // correlationID pode ser "pedidoId" ou "pedidoId-1234567890123" quando houve retentativa
+      let pedidoId = charge?.correlationID;
+      if (pedidoId) {
+        const match = pedidoId.match(/^(.+)-\d{13}$/);
+        if (match) {
+          log('INFO', 'WEBHOOK', `correlationID ${pedidoId} tem sufixo de retentativa — extraindo pedidoId original: ${match[1]}`, { requestId });
+          pedidoId = match[1];
+        }
+      }
 
       if (pedidoId) {
         await setDoc(doc(db, "pedidos", pedidoId), {
