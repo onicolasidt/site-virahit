@@ -99,8 +99,13 @@ function checkRateLimit(ip: string, maxRequests: number = 30, windowMs: number =
 
 const WOOVI_APP_ID = process.env.WOOVI_APP_ID || "";
 
+const RASCUNHOS_DIR = path.join(process.cwd(), 'uploads', 'rascunhos');
+if (!fs.existsSync(RASCUNHOS_DIR)) {
+  fs.mkdirSync(RASCUNHOS_DIR, { recursive: true });
+}
+
 // ==========================================
-// POST /api/salvar-rascunho — Salva dados do quiz no Firestore (sem localStorage)
+// POST /api/salvar-rascunho — Salva dados do quiz em arquivo no VPS
 // ==========================================
 app.post("/api/salvar-rascunho", async (req: any, res: any) => {
   const requestId = req._requestId ?? generateRequestId();
@@ -115,27 +120,28 @@ app.post("/api/salvar-rascunho", async (req: any, res: any) => {
       return res.status(429).json({ error: "Muitas requisições. Aguarde um momento." });
     }
 
-    // Reutiliza rascunhoId se existir, senão cria um novo
-    const rascunhoRef = idRecebido ? doc(db, "rascunhos", idRecebido) : doc(collection(db, "rascunhos"));
-    const rascunhoId = rascunhoRef.id;
+    const rascunhoId = idRecebido || 'rasc-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
     const agora = new Date().toISOString();
 
+    const arquivoPath = path.join(RASCUNHOS_DIR, `${rascunhoId}.json`);
+    let existente: any = {};
+    if (fs.existsSync(arquivoPath)) {
+      existente = JSON.parse(fs.readFileSync(arquivoPath, 'utf-8'));
+    }
+
     const payload = {
+      ...existente,
       ...(data || {}),
-      step: step || 1,
+      step: step || existente.step || 1,
       atualizadoEm: agora,
       ip: clientIp,
       userAgent: req.headers['user-agent'] || '',
+      criadoEm: existente.criadoEm || agora,
     };
 
-    // Se for novo, adiciona criadoEm
-    if (!idRecebido) {
-      payload.criadoEm = agora;
-    }
+    fs.writeFileSync(arquivoPath, JSON.stringify(payload, null, 2));
 
-    await setDoc(rascunhoRef, payload, { merge: true });
-
-    log('INFO', 'SERVER', `Rascunho ${rascunhoId} salvo (step ${step})`, {
+    log('INFO', 'SERVER', `Rascunho ${rascunhoId} salvo em arquivo (step ${step})`, {
       requestId,
       durationMs: Date.now() - startMs,
       meta: { rascunhoId, step, isNovo: !idRecebido }
@@ -217,7 +223,7 @@ app.post("/api/upload-audio", async (req: any, res: any) => {
 });
 
 // ==========================================
-// GET /api/rascunho/:id — Busca dados do rascunho no Firestore
+// GET /api/rascunho/:id — Busca dados do rascunho em arquivo no VPS
 // ==========================================
 app.get("/api/rascunho/:id", async (req: any, res: any) => {
   const requestId = req._requestId ?? generateRequestId();
@@ -225,12 +231,13 @@ app.get("/api/rascunho/:id", async (req: any, res: any) => {
     const { id } = req.params;
     if (!id) return res.status(400).json({ error: "ID do rascunho é obrigatório" });
 
-    const snap = await getDoc(doc(db, "rascunhos", id));
-    if (!snap.exists()) {
+    const arquivoPath = path.join(RASCUNHOS_DIR, `${id}.json`);
+    if (!fs.existsSync(arquivoPath)) {
       return res.status(404).json({ error: "Rascunho não encontrado" });
     }
 
-    res.json({ success: true, data: snap.data() });
+    const data = JSON.parse(fs.readFileSync(arquivoPath, 'utf-8'));
+    res.json({ success: true, data });
 
   } catch (err: any) {
     log('ERROR', 'SERVER', `Erro ao buscar rascunho: ${err.message}`, { requestId, error: errorPayload(err) });
@@ -532,9 +539,9 @@ app.post("/api/criar-pedido-com-pix", async (req: any, res: any) => {
 
     if (rascunhoId) {
       try {
-        const rascunhoSnap = await getDoc(doc(db, "rascunhos", rascunhoId));
-        if (rascunhoSnap.exists()) {
-          const rascunho = rascunhoSnap.data();
+        const arquivoPath = path.join(RASCUNHOS_DIR, `${rascunhoId}.json`);
+        if (fs.existsSync(arquivoPath)) {
+          const rascunho = JSON.parse(fs.readFileSync(arquivoPath, 'utf-8'));
           // Mescla dados do rascunho com dados do body (body tem prioridade para contato)
           pedidoData = {
             nome: rascunho.nome || nome,
@@ -555,9 +562,9 @@ app.post("/api/criar-pedido-com-pix", async (req: any, res: any) => {
             audioCampoCOutro: rascunho.audioCampoCOutro || audioCampoCOutro,
             audioBlobs: rascunho.audioBlobs || audioBlobs,
           };
-          log('INFO', 'SERVER', `Rascunho ${rascunhoId} carregado para criar pedido`, { requestId, meta: { rascunhoId } });
+          log('INFO', 'SERVER', `Rascunho ${rascunhoId} carregado de arquivo para criar pedido`, { requestId, meta: { rascunhoId } });
         } else {
-          log('WARN', 'SERVER', `Rascunho ${rascunhoId} não encontrado — usando dados do body`, { requestId });
+          log('WARN', 'SERVER', `Rascunho ${rascunhoId} não encontrado em arquivo — usando dados do body`, { requestId });
         }
       } catch (rascunhoErr: any) {
         log('WARN', 'SERVER', `Erro ao buscar rascunho ${rascunhoId}: ${rascunhoErr.message} — usando dados do body`, { requestId });
@@ -581,14 +588,14 @@ app.post("/api/criar-pedido-com-pix", async (req: any, res: any) => {
       audioFiles = await salvarAudiosNoVPS(pedidoData.audioBlobs, codigoCurto, requestId);
     }
 
-    // 3. Cria pedido no Firestore
+    // 3. Cria pedido no Firestore (sanitiza undefined → string vazia)
     await setDoc(pedidoRef, {
-      nome: pedidoData.nome,
-      estilo: pedidoData.estilo,
-      voz: pedidoData.voz,
-      genero: pedidoData.genero,
-      compradorNome: pedidoData.compradorNome,
-      compradorWhatsApp: pedidoData.compradorWhatsApp,
+      nome: pedidoData.nome || '',
+      estilo: pedidoData.estilo || '',
+      voz: pedidoData.voz || '',
+      genero: pedidoData.genero || '',
+      compradorNome: pedidoData.compradorNome || '',
+      compradorWhatsApp: pedidoData.compradorWhatsApp || '',
       compradorEmail: pedidoData.compradorEmail || '',
       campoA: pedidoData.campoA || '',
       campoB: pedidoData.campoB || '',
