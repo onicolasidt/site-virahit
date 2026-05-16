@@ -172,11 +172,20 @@ newErrors.email = 'Digite um e-mail válido';
       const pedidoId = result.pedidoId;
       const codigoCurto = result.codigoCurto;
 
-      // Salva no localStorage para o checkout usar
+      // Limpar dados pesados ANTES de salvar o pedidoData
+      // (os áudios já foram salvos em arquivo no VPS pelo servidor)
+      localStorage.removeItem('virahit_audio_blobs');
+      localStorage.removeItem('virahit_quiz_data');
+      localStorage.removeItem('virahit_quiz_draft');
+
+      // Salva no localStorage apenas o essencial para o checkout
       localStorage.setItem('idPedido', pedidoId);
       localStorage.setItem('codigoPedido', codigoCurto);
       localStorage.setItem('pedidoData', JSON.stringify({
-        ...data,
+        nome: data.nome || '',
+        genero: data.genero || '',
+        estilo: data.estilo || '',
+        voz: data.voz || '',
         compradorNome: nome,
         compradorWhatsApp: '55' + cleanPhone(whatsapp).replace(/^55/, ''),
         compradorEmail: email,
@@ -195,10 +204,6 @@ newErrors.email = 'Digite um e-mail válido';
         localStorage.setItem('pixCopiaCola', result.pix.copiaCola);
         localStorage.setItem('pixQRCodeUrl', result.pix.qrCodeUrl);
       }
-
-      // Limpar o draft do quiz
-      localStorage.removeItem('virahit_quiz_draft');
-      localStorage.removeItem('virahit_audio_blobs');
 
       // Escrever código curto na URL
       window.history.replaceState(null, '', '/quiz/?pedido=' + codigoCurto);
