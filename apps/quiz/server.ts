@@ -350,8 +350,7 @@ app.post("/api/criar-pedido-com-pix", async (req: any, res: any) => {
       status: 'pendente',
       gateway: 'stripe',
       criadoEm: agora,
-      // Áudios gravados no quiz
-      ...(audioBlobs ? { audioBlobs } : {}),
+      // audioBlobs removido — excede limite de 1MB do Firestore
       ...(audioNome ? { audioNome } : {}),
       ...(audioCampoA ? { audioCampoA } : {}),
       ...(audioCampoB ? { audioCampoB } : {}),
