@@ -18,23 +18,27 @@ const MEDIA_ID = '9f2cf5bfpe';
 
 export default function HeroVideo() {
   useEffect(() => {
-    const scripts = [
-      { id: 'wistia-player-js', src: 'https://fast.wistia.com/player.js', type: '' },
-      { id: `wistia-embed-${MEDIA_ID}`, src: `https://fast.wistia.com/embed/${MEDIA_ID}.js`, type: 'module' },
-    ];
-    scripts.forEach(({ id, src, type }) => {
-      if (document.getElementById(id)) return;
-      const s = document.createElement('script');
-      s.id = id;
-      s.src = src;
-      s.async = true;
-      if (type) s.type = type;
-      document.head.appendChild(s);
-    });
+    // Adiar carregamento do Wistia para liberar thread principal (LCP/TBT)
+    const timer = setTimeout(() => {
+      const scripts = [
+        { id: 'wistia-player-js', src: 'https://fast.wistia.com/player.js', type: '' },
+        { id: `wistia-embed-${MEDIA_ID}`, src: `https://fast.wistia.com/embed/${MEDIA_ID}.js`, type: 'module' },
+      ];
+      scripts.forEach(({ id, src, type }) => {
+        if (document.getElementById(id)) return;
+        const s = document.createElement('script');
+        s.id = id;
+        s.src = src;
+        s.async = true;
+        if (type) s.type = type;
+        document.head.appendChild(s);
+      });
+    }, 2500);
+    return () => clearTimeout(timer);
   }, []);
 
   return (
-    <div className="relative w-full max-w-[380px] sm:max-w-[440px] mx-auto">
+    <div className="relative w-full max-w-[380px] sm:max-w-[440px] mx-auto" style={{ aspectRatio: '4/5', minHeight: '380px' }}>
       <style>{`
         wistia-player[media-id='${MEDIA_ID}']:not(:defined) {
           background: center / contain no-repeat url('https://fast.wistia.com/embed/medias/${MEDIA_ID}/swatch');
