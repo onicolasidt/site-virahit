@@ -100,6 +100,145 @@ function checkRateLimit(ip: string, maxRequests: number = 30, windowMs: number =
 const WOOVI_APP_ID = process.env.WOOVI_APP_ID || "";
 
 // ==========================================
+// POST /api/salvar-rascunho — Salva dados do quiz no Firestore (sem localStorage)
+// ==========================================
+app.post("/api/salvar-rascunho", async (req: any, res: any) => {
+  const requestId = req._requestId ?? generateRequestId();
+  const startMs = req._startMs ?? Date.now();
+
+  try {
+    const { rascunhoId: idRecebido, step, data } = req.body || {};
+
+    // Rate limit por IP
+    const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
+    if (!checkRateLimit(clientIp, 30, 60000)) {
+      return res.status(429).json({ error: "Muitas requisições. Aguarde um momento." });
+    }
+
+    // Reutiliza rascunhoId se existir, senão cria um novo
+    const rascunhoRef = idRecebido ? doc(db, "rascunhos", idRecebido) : doc(collection(db, "rascunhos"));
+    const rascunhoId = rascunhoRef.id;
+    const agora = new Date().toISOString();
+
+    const payload = {
+      ...(data || {}),
+      step: step || 1,
+      atualizadoEm: agora,
+      ip: clientIp,
+      userAgent: req.headers['user-agent'] || '',
+    };
+
+    // Se for novo, adiciona criadoEm
+    if (!idRecebido) {
+      payload.criadoEm = agora;
+    }
+
+    await setDoc(rascunhoRef, payload, { merge: true });
+
+    log('INFO', 'SERVER', `Rascunho ${rascunhoId} salvo (step ${step})`, {
+      requestId,
+      durationMs: Date.now() - startMs,
+      meta: { rascunhoId, step, isNovo: !idRecebido }
+    });
+
+    res.json({ success: true, rascunhoId });
+
+  } catch (err: any) {
+    log('ERROR', 'SERVER', `Erro ao salvar rascunho: ${err.message}`, {
+      requestId,
+      durationMs: Date.now() - startMs,
+      error: errorPayload(err),
+    });
+    res.status(500).json({ error: "Erro ao salvar rascunho. Tente novamente." });
+  }
+});
+
+// ==========================================
+// POST /api/upload-audio — Recebe base64, salva no VPS, retorna audioId
+// ==========================================
+app.post("/api/upload-audio", async (req: any, res: any) => {
+  const requestId = req._requestId ?? generateRequestId();
+  const startMs = req._startMs ?? Date.now();
+
+  try {
+    const { base64, campo, rascunhoId } = req.body || {};
+
+    if (!base64 || typeof base64 !== 'string') {
+      return res.status(400).json({ error: "base64 é obrigatório" });
+    }
+
+    // Rate limit por IP
+    const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
+    if (!checkRateLimit(clientIp, 20, 60000)) {
+      return res.status(429).json({ error: "Muitas requisições. Aguarde um momento." });
+    }
+
+    const buffer = Buffer.from(base64.replace(/^data:audio\/\w+;base64,/, ''), 'base64');
+
+    if (buffer.length > MAX_AUDIO_SIZE_BYTES) {
+      return res.status(413).json({ error: "Áudio muito grande. Máximo 5MB." });
+    }
+
+    // Usa rascunhoId para organizar os áudios, ou gera um ID temporário
+    const pastaId = rascunhoId || 'temp-' + Date.now();
+    const dir = path.join(UPLOADS_DIR, pastaId);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+
+    const audioId = `${campo || 'audio'}-${Date.now()}`;
+    const safeId = audioId.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const fileName = `${safeId}.webm`;
+    const filePath = path.join(dir, fileName);
+
+    fs.writeFileSync(filePath, buffer);
+
+    log('INFO', 'AUDIO', `Áudio ${safeId} salvo para ${pastaId} (${buffer.length} bytes)`, {
+      requestId,
+      durationMs: Date.now() - startMs,
+      meta: { rascunhoId: pastaId, campo, size: buffer.length }
+    });
+
+    res.json({
+      success: true,
+      audioId: safeId,
+      url: `/audios/${pastaId}/${fileName}`,
+      size: buffer.length,
+    });
+
+  } catch (err: any) {
+    log('ERROR', 'AUDIO', `Erro ao salvar áudio: ${err.message}`, {
+      requestId,
+      durationMs: Date.now() - startMs,
+      error: errorPayload(err),
+    });
+    res.status(500).json({ error: "Erro ao salvar áudio. Tente novamente." });
+  }
+});
+
+// ==========================================
+// GET /api/rascunho/:id — Busca dados do rascunho no Firestore
+// ==========================================
+app.get("/api/rascunho/:id", async (req: any, res: any) => {
+  const requestId = req._requestId ?? generateRequestId();
+  try {
+    const { id } = req.params;
+    if (!id) return res.status(400).json({ error: "ID do rascunho é obrigatório" });
+
+    const snap = await getDoc(doc(db, "rascunhos", id));
+    if (!snap.exists()) {
+      return res.status(404).json({ error: "Rascunho não encontrado" });
+    }
+
+    res.json({ success: true, data: snap.data() });
+
+  } catch (err: any) {
+    log('ERROR', 'SERVER', `Erro ao buscar rascunho: ${err.message}`, { requestId, error: errorPayload(err) });
+    res.status(500).json({ error: "Erro ao buscar rascunho" });
+  }
+});
+
+// ==========================================
 // POST /api/pix — Criar cobrança PIX via Woovi
 // ==========================================
 app.post("/api/pix", async (req: any, res: any) => {
@@ -376,13 +515,56 @@ app.post("/api/criar-pedido-com-pix", async (req: any, res: any) => {
 
     try {
     const {
+      rascunhoId,
       nome, estilo, voz, genero,
       compradorNome, compradorWhatsApp, compradorEmail,
       campoA, campoB, campoC, campoCOutro, vinculo,
       audioBlobs, audioNome, audioCampoA, audioCampoB, audioCampoCOutro
     } = req.body;
 
-    if (!nome || !compradorNome || !compradorWhatsApp) {
+    // === NOVO: se receber rascunhoId, busca dados do Firestore ===
+    let pedidoData: any = {
+      nome, estilo, voz, genero,
+      compradorNome, compradorWhatsApp, compradorEmail,
+      campoA, campoB, campoC, campoCOutro, vinculo,
+      audioBlobs, audioNome, audioCampoA, audioCampoB, audioCampoCOutro
+    };
+
+    if (rascunhoId) {
+      try {
+        const rascunhoSnap = await getDoc(doc(db, "rascunhos", rascunhoId));
+        if (rascunhoSnap.exists()) {
+          const rascunho = rascunhoSnap.data();
+          // Mescla dados do rascunho com dados do body (body tem prioridade para contato)
+          pedidoData = {
+            nome: rascunho.nome || nome,
+            estilo: rascunho.estilo || estilo,
+            voz: rascunho.voz || voz,
+            genero: rascunho.genero || genero,
+            compradorNome: compradorNome || rascunho.compradorNome,
+            compradorWhatsApp: compradorWhatsApp || rascunho.compradorWhatsApp,
+            compradorEmail: compradorEmail || rascunho.compradorEmail,
+            campoA: rascunho.campoA || campoA || '',
+            campoB: rascunho.campoB || campoB || '',
+            campoC: rascunho.campoC || campoC || '',
+            campoCOutro: rascunho.campoCOutro || campoCOutro || '',
+            vinculo: rascunho.vinculo || vinculo || '',
+            audioNome: rascunho.audioNome || audioNome,
+            audioCampoA: rascunho.audioCampoA || audioCampoA,
+            audioCampoB: rascunho.audioCampoB || audioCampoB,
+            audioCampoCOutro: rascunho.audioCampoCOutro || audioCampoCOutro,
+            audioBlobs: rascunho.audioBlobs || audioBlobs,
+          };
+          log('INFO', 'SERVER', `Rascunho ${rascunhoId} carregado para criar pedido`, { requestId, meta: { rascunhoId } });
+        } else {
+          log('WARN', 'SERVER', `Rascunho ${rascunhoId} não encontrado — usando dados do body`, { requestId });
+        }
+      } catch (rascunhoErr: any) {
+        log('WARN', 'SERVER', `Erro ao buscar rascunho ${rascunhoId}: ${rascunhoErr.message} — usando dados do body`, { requestId });
+      }
+    }
+
+    if (!pedidoData.nome || !pedidoData.compradorNome || !pedidoData.compradorWhatsApp) {
       log('WARN', 'VALIDATION', 'criar-pedido-com-pix: dados obrigatórios ausentes', { requestId });
       return res.status(400).json({ error: "Dados obrigatórios ausentes" });
     }
@@ -395,34 +577,34 @@ app.post("/api/criar-pedido-com-pix", async (req: any, res: any) => {
 
     // 2. Salvar áudios no VPS (se houver)
     let audioFiles: Array<{ campo: string; path: string; size: number; gravadoEm: string }> = [];
-    if (audioBlobs && typeof audioBlobs === 'object' && Object.keys(audioBlobs).length > 0) {
-      audioFiles = await salvarAudiosNoVPS(audioBlobs, codigoCurto, requestId);
+    if (pedidoData.audioBlobs && typeof pedidoData.audioBlobs === 'object' && Object.keys(pedidoData.audioBlobs).length > 0) {
+      audioFiles = await salvarAudiosNoVPS(pedidoData.audioBlobs, codigoCurto, requestId);
     }
 
     // 3. Cria pedido no Firestore
     await setDoc(pedidoRef, {
-      nome,
-      estilo,
-      voz,
-      genero,
-      compradorNome,
-      compradorWhatsApp,
-      compradorEmail: compradorEmail || '',
-      campoA: campoA || '',
-      campoB: campoB || '',
-      campoC: campoC || '',
-      campoCOutro: campoCOutro || '',
-      vinculo: vinculo || '',
+      nome: pedidoData.nome,
+      estilo: pedidoData.estilo,
+      voz: pedidoData.voz,
+      genero: pedidoData.genero,
+      compradorNome: pedidoData.compradorNome,
+      compradorWhatsApp: pedidoData.compradorWhatsApp,
+      compradorEmail: pedidoData.compradorEmail || '',
+      campoA: pedidoData.campoA || '',
+      campoB: pedidoData.campoB || '',
+      campoC: pedidoData.campoC || '',
+      campoCOutro: pedidoData.campoCOutro || '',
+      vinculo: pedidoData.vinculo || '',
       codigoCurto,
       status: 'pendente',
       gateway: 'stripe',
       criadoEm: agora,
       // audioBlobs salvo em arquivo no VPS — referência abaixo
       ...(audioFiles.length > 0 ? { audioFiles } : {}),
-      ...(audioNome ? { audioNome } : {}),
-      ...(audioCampoA ? { audioCampoA } : {}),
-      ...(audioCampoB ? { audioCampoB } : {}),
-      ...(audioCampoCOutro ? { audioCampoCOutro } : {}),
+      ...(pedidoData.audioNome ? { audioNome: pedidoData.audioNome } : {}),
+      ...(pedidoData.audioCampoA ? { audioCampoA: pedidoData.audioCampoA } : {}),
+      ...(pedidoData.audioCampoB ? { audioCampoB: pedidoData.audioCampoB } : {}),
+      ...(pedidoData.audioCampoCOutro ? { audioCampoCOutro: pedidoData.audioCampoCOutro } : {}),
     });
 
     log('INFO', 'FIREBASE', `Pedido ${pedidoId} criado com código curto ${codigoCurto}`, { requestId });
@@ -446,11 +628,11 @@ app.post("/api/criar-pedido-com-pix", async (req: any, res: any) => {
             correlationID: pedidoId,
             value: 100,
             expiresIn: 1800,
-            comment: `ViraHit - Música ${nome}`,
+            comment: `ViraHit - Música ${pedidoData.nome}`,
             customer: {
-              name: compradorNome || nome,
-              email: compradorEmail || `${pedidoId}@virahit.com`,
-              phone: compradorWhatsApp
+              name: pedidoData.compradorNome || pedidoData.nome,
+              email: pedidoData.compradorEmail || `${pedidoId}@virahit.com`,
+              phone: pedidoData.compradorWhatsApp
             }
           }),
           signal: pixController.signal,

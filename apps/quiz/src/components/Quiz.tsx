@@ -105,6 +105,7 @@ export function Quiz({ onFinishQuiz, initialStep = 1 }: QuizProps) {
   const [isRecordingFor, setIsRecordingFor] = useState<keyof QuizData | null>(null);
   const [playingStyle, setPlayingStyle] = useState<string | null>(null);
   const [loadingStyle, setLoadingStyle] = useState<string | null>(null);
+  const [rascunhoId, setRascunhoId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const nomeInputRef = useRef<HTMLInputElement | null>(null);
   const continuar1Ref = useRef<HTMLButtonElement | null>(null);
@@ -116,6 +117,8 @@ export function Quiz({ onFinishQuiz, initialStep = 1 }: QuizProps) {
   const recordingChunksRef = useRef<Blob[]>([]);
   // Mapa de audioId -> URL blob para reprodução
   const audioBlobsRef = useRef<Map<number, string>>(new Map());
+  // Mapa de audioId -> audioId do servidor (para referência)
+  const serverAudioIdsRef = useRef<Map<number, string>>(new Map());
 
   useEffect(() => {
     // Restaurar blobs do localStorage ao montar (caso usuario tenha recarregado)
@@ -184,8 +187,39 @@ export function Quiz({ onFinishQuiz, initialStep = 1 }: QuizProps) {
     window.scrollTo(0, 0);
   }, [step]);
 
-  // Load from local storage
+  // Load from local storage (fallback para rascunho antigo)
   useEffect(() => {
+    // Tentar recuperar rascunhoId do localStorage
+    const savedRascunhoId = localStorage.getItem('virahit_rascunho_id');
+    if (savedRascunhoId) {
+      setRascunhoId(savedRascunhoId);
+      // Buscar dados do servidor
+      fetch(`/api/rascunho/${savedRascunhoId}`)
+        .then(r => r.json())
+        .then(res => {
+          if (res.success && res.data) {
+            setData({
+              ...res.data,
+              audioNome: Array.isArray(res.data.audioNome) ? res.data.audioNome : [],
+              audioCampoA: Array.isArray(res.data.audioCampoA) ? res.data.audioCampoA : [],
+              audioCampoB: Array.isArray(res.data.audioCampoB) ? res.data.audioCampoB : [],
+              audioCampoCOutro: Array.isArray(res.data.audioCampoCOutro) ? res.data.audioCampoCOutro : [],
+            });
+            const savedStep = res.data.step;
+            if (savedStep && ['2', '3'].includes(String(savedStep))) {
+              setStep(Number(savedStep));
+            }
+            setTimeout(() => {
+              setShowDraftToast(true);
+              setTimeout(() => setShowDraftToast(false), 4000);
+            }, 800);
+          }
+        })
+        .catch(() => {});
+      return;
+    }
+
+    // Fallback: carregar do localStorage antigo (migracao)
     const saved = localStorage.getItem('virahit_quiz_draft');
     if (saved) {
       try {
@@ -197,18 +231,13 @@ export function Quiz({ onFinishQuiz, initialStep = 1 }: QuizProps) {
           audioCampoB: Array.isArray(parsed.audioCampoB) ? parsed.audioCampoB : [],
           audioCampoCOutro: Array.isArray(parsed.audioCampoCOutro) ? parsed.audioCampoCOutro : [],
         });
-
-        // Restaurar step salvo
         const savedStep = localStorage.getItem('virahit_quiz_step');
         if (savedStep && ['2', '3'].includes(savedStep)) {
           setStep(Number(savedStep));
         }
-        
         setTimeout(() => {
           setShowDraftToast(true);
-          setTimeout(() => {
-            setShowDraftToast(false);
-          }, 4000);
+          setTimeout(() => setShowDraftToast(false), 4000);
         }, 800);
       } catch (e) {
         console.error("Failed to parse draft");
@@ -216,25 +245,57 @@ export function Quiz({ onFinishQuiz, initialStep = 1 }: QuizProps) {
     }
   }, []);
 
-  // Save to local storage on change
+  // Salvar rascunho no servidor a cada mudança (debounce 3s)
+  const rascunhoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    const timeout = setTimeout(() => {
-      localStorage.setItem('virahit_quiz_draft', JSON.stringify(data));
-      localStorage.setItem('virahit_quiz_step', String(step));
+    if (rascunhoTimeoutRef.current) clearTimeout(rascunhoTimeoutRef.current);
+    rascunhoTimeoutRef.current = setTimeout(() => {
+      salvarRascunho();
     }, 3000);
-    return () => clearTimeout(timeout);
+    return () => {
+      if (rascunhoTimeoutRef.current) clearTimeout(rascunhoTimeoutRef.current);
+    };
   }, [data, step]);
+
+  const salvarRascunho = async () => {
+    try {
+      const payload = {
+        rascunhoId,
+        step,
+        data: {
+          ...data,
+          audioBlobs: undefined, // nunca enviar audioBlobs pro rascunho
+        },
+      };
+      const res = await fetch('/api/salvar-rascunho', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const result = await res.json();
+      if (result.success && result.rascunhoId) {
+        setRascunhoId(result.rascunhoId);
+        localStorage.setItem('virahit_rascunho_id', result.rascunhoId);
+      }
+    } catch (e) {
+      console.error('Erro ao salvar rascunho:', e);
+    }
+  };
 
   const autoSaveNow = (newData: QuizData) => {
     setData(newData);
-    localStorage.setItem('virahit_quiz_draft', JSON.stringify(newData));
-    localStorage.setItem('virahit_quiz_step', String(step));
+    // Dispara salvar rascunho imediatamente (sem debounce)
+    salvarRascunho();
   };
 
   const handleClearDraft = () => {
+    localStorage.removeItem('virahit_rascunho_id');
     localStorage.removeItem('virahit_quiz_draft');
+    localStorage.removeItem('virahit_quiz_step');
+    localStorage.removeItem('virahit_audio_blobs');
     setData(initialData);
     setStep(1);
+    setRascunhoId(null);
     setShowDraftToast(false);
   };
 
@@ -258,17 +319,32 @@ export function Quiz({ onFinishQuiz, initialStep = 1 }: QuizProps) {
         audioBlobsRef.current.set(id, url);
         stream.getTracks().forEach(t => t.stop());
 
-        // Salvar base64 no localStorage para persistir entre navegações
+        // Upload imediato para o servidor (nunca mais localStorage para áudios)
         const reader = new FileReader();
         reader.onloadend = () => {
           const base64 = reader.result as string;
-          try {
-            const stored = JSON.parse(localStorage.getItem('virahit_audio_blobs') || '{}');
-            stored[id] = base64;
-            localStorage.setItem('virahit_audio_blobs', JSON.stringify(stored));
-          } catch (e) {
-            // localStorage cheio — mantém só em memória
-          }
+          (async () => {
+            try {
+              const uploadRes = await fetch('/api/upload-audio', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  base64,
+                  campo: field,
+                  rascunhoId: rascunhoId || undefined,
+                }),
+              });
+              const uploadResult = await uploadRes.json();
+              if (uploadResult.success && uploadResult.audioId) {
+                serverAudioIdsRef.current.set(id, uploadResult.audioId);
+                // Salva a referência no rascunho
+                salvarRascunho();
+              }
+            } catch (e) {
+              console.error('Erro ao fazer upload do áudio:', e);
+              // Se falhar o upload, ainda tem o blob em memória para reprodução
+            }
+          })();
         };
         reader.readAsDataURL(blob);
 
@@ -819,9 +895,10 @@ export function Quiz({ onFinishQuiz, initialStep = 1 }: QuizProps) {
                   </button>
                   <button
                     onClick={() => {
-                      const _audioBlobs = JSON.parse(localStorage.getItem('virahit_audio_blobs') || '{}');
-                      sessionStorage.setItem('virahit_quiz_data', JSON.stringify({...data, _audioBlobs}));
+                      sessionStorage.setItem('virahit_rascunho_id', rascunhoId || '');
                       localStorage.removeItem('virahit_quiz_step');
+                      localStorage.removeItem('virahit_quiz_draft');
+                      localStorage.removeItem('virahit_audio_blobs');
                       onFinishQuiz();
                     }}
                     className="text-[var(--teal-light)] text-sm sm:text-base transition-opacity hover:opacity-70 font-medium"
@@ -834,9 +911,10 @@ export function Quiz({ onFinishQuiz, initialStep = 1 }: QuizProps) {
               <div className="flex flex-col">
                 <button
                   onClick={() => {
-                    const _audioBlobs = JSON.parse(localStorage.getItem('virahit_audio_blobs') || '{}');
-                    sessionStorage.setItem('virahit_quiz_data', JSON.stringify({...data, _audioBlobs}));
+                    sessionStorage.setItem('virahit_rascunho_id', rascunhoId || '');
                     localStorage.removeItem('virahit_quiz_step');
+                    localStorage.removeItem('virahit_quiz_draft');
+                    localStorage.removeItem('virahit_audio_blobs');
                     onFinishQuiz();
                   }}
                   className="group w-full py-5 bg-[var(--gold)] text-white heading-font text-[19px] rounded-sm flex items-center justify-center gap-3 shadow-xl transition-transform active:scale-95"

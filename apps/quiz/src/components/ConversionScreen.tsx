@@ -9,12 +9,14 @@ interface ConversionScreenProps {
 
 export function ConversionScreen({ onBackToQuiz, onGoToCheckout }: ConversionScreenProps) {
   const [data, setData] = useState<any>(null);
+  const [rascunhoId, setRascunhoId] = useState<string | null>(null);
   const [nome, setNome] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
   const [email, setEmail] = useState('');
   const [errors, setErrors] = useState({ nome: '', whatsapp: '', email: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showToast, setShowToast] = useState(false);
+  const [isLoadingRascunho, setIsLoadingRascunho] = useState(true);
 
   const [isPlayingAmostra, setIsPlayingAmostra] = useState(false);
   const [isLoadingAmostra, setIsLoadingAmostra] = useState(false);
@@ -71,16 +73,59 @@ export function ConversionScreen({ onBackToQuiz, onGoToCheckout }: ConversionScr
 
   useEffect(() => {
     window.scrollTo(0, 0);
-    const savedData = sessionStorage.getItem('virahit_quiz_data');
-    if (savedData) {
-      setData(JSON.parse(savedData));
+    const savedRascunhoId = sessionStorage.getItem('virahit_rascunho_id');
+    if (savedRascunhoId) {
+      setRascunhoId(savedRascunhoId);
+      // Buscar dados do rascunho no servidor
+      fetch(`/api/rascunho/${savedRascunhoId}`)
+        .then(r => r.json())
+        .then(res => {
+          if (res.success && res.data) {
+            setData(res.data);
+          } else {
+            // Fallback: tentar dados antigos no sessionStorage
+            const savedData = sessionStorage.getItem('virahit_quiz_data');
+            if (savedData) {
+              setData(JSON.parse(savedData));
+            } else {
+              onBackToQuiz();
+            }
+          }
+        })
+        .catch(() => {
+          const savedData = sessionStorage.getItem('virahit_quiz_data');
+          if (savedData) {
+            setData(JSON.parse(savedData));
+          } else {
+            onBackToQuiz();
+          }
+        })
+        .finally(() => setIsLoadingRascunho(false));
     } else {
-      onBackToQuiz();
+      // Fallback: dados antigos no sessionStorage
+      const savedData = sessionStorage.getItem('virahit_quiz_data');
+      if (savedData) {
+        setData(JSON.parse(savedData));
+        setIsLoadingRascunho(false);
+      } else {
+        onBackToQuiz();
+      }
     }
     setNome(localStorage.getItem('compradorNome') || '');
     setWhatsapp(localStorage.getItem('compradorWhatsApp') || '');
     setEmail(localStorage.getItem('compradorEmail') || '');
   }, []);
+
+  if (isLoadingRascunho) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[var(--teal)]">
+        <div className="text-center">
+          <span className="material-symbols-outlined animate-spin text-[var(--gold)] text-4xl">progress_activity</span>
+          <p className="text-white mt-4 text-sm">Carregando seus dados...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!data) return null;
 
@@ -143,18 +188,12 @@ newErrors.email = 'Digite um e-mail válido';
     setIsSubmitting(true);
 
     try {
-      // Recuperar áudios do localStorage para enviar ao servidor
-      let audioBlobs: Record<string, string> = {};
-      try {
-        audioBlobs = JSON.parse(localStorage.getItem('virahit_audio_blobs') || '{}');
-      } catch { }
-
+      // === NOVO: payload leve — apenas rascunhoId + contato ===
       const pedidoPayload = {
-        ...data,
+        rascunhoId,
         compradorNome: nome,
         compradorWhatsApp: '55' + cleanPhone(whatsapp).replace(/^55/, ''),
         compradorEmail: email,
-        ...(Object.keys(audioBlobs).length > 0 ? { audioBlobs } : {}),
       };
 
       const response = await fetch('/api/criar-pedido-com-pix', {
@@ -172,13 +211,14 @@ newErrors.email = 'Digite um e-mail válido';
       const pedidoId = result.pedidoId;
       const codigoCurto = result.codigoCurto;
 
-      // Limpar dados pesados ANTES de salvar o pedidoData
-      // (os áudios já foram salvos em arquivo no VPS pelo servidor)
+      // Limpar TUDO do localStorage — sessão agora vive no servidor
       localStorage.removeItem('virahit_audio_blobs');
       localStorage.removeItem('virahit_quiz_data');
       localStorage.removeItem('virahit_quiz_draft');
+      localStorage.removeItem('virahit_quiz_step');
+      localStorage.removeItem('virahit_rascunho_id');
 
-      // Salva no localStorage apenas o essencial para o checkout
+      // Salva no localStorage apenas o essencial para o checkout (~200 bytes)
       localStorage.setItem('idPedido', pedidoId);
       localStorage.setItem('codigoPedido', codigoCurto);
       localStorage.setItem('pedidoData', JSON.stringify({
