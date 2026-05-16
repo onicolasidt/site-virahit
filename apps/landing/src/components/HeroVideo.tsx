@@ -34,7 +34,10 @@ export default function HeroVideo() {
   }, []);
 
   return (
-    <div className="relative w-full max-w-[380px] sm:max-w-[440px] mx-auto">
+    <div
+      className="relative w-full max-w-[380px] sm:max-w-[440px] mx-auto"
+      style={{ aspectRatio: '4 / 5', minHeight: '380px' }}
+    >
       <style>{`
         wistia-player[media-id='${MEDIA_ID}']:not(:defined) {
           background: center / contain no-repeat url('https://fast.wistia.com/embed/medias/${MEDIA_ID}/swatch');
