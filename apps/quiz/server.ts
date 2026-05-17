@@ -450,6 +450,11 @@ app.post("/api/pix", async (req: any, res: any) => {
       meta: { pedidoId, correlationID: charge.correlationID, status: charge.status, value: charge.value }
     });
 
+    // Fire-and-forget Baserow sync for PIX generation
+    const isRegenerated = correlationIDUsado.includes('-') && correlationIDUsado !== pedidoId;
+    const evento = isRegenerated ? 'pix_regenerado' : 'pix_gerado';
+    sincronizarProducao({ codigoCurto: pedidoId }, evento, requestId);
+
     res.json({ success: true, charge });
 
   } catch (err: any) {
@@ -470,6 +475,99 @@ const UPLOADS_DIR = path.join(process.cwd(), 'uploads', 'audios');
 const MAX_AUDIOS_PER_PEDIDO = 10;
 const MAX_AUDIO_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
 const MAX_TOTAL_AUDIO_SIZE_BYTES = 20 * 1024 * 1024; // 20 MB
+
+// ==========================================
+// Baserow sync — fire-and-forget
+// ==========================================
+const BASEROW_TOKEN = 'cWMKvF1vPQUFlKZsFV3F1raIQ8s1bWrj';
+const BASEROW_TABLE_ID = '901528';
+
+async function sincronizarProducao(pedido: any, evento: string, requestId?: string) {
+  try {
+    const rId = requestId || generateRequestId();
+    const codigoCurto = pedido.codigoCurto || pedido.idPedido;
+    if (!codigoCurto || codigoCurto === 'demo-pedido') return;
+
+    // Build payload based on event
+    let statusPagamento = 'Pendente';
+    let tentativasIncrement = 0;
+    if (evento === 'pix_gerado') { statusPagamento = 'PIX_Gerado'; tentativasIncrement = 1; }
+    else if (evento === 'pix_regenerado') { statusPagamento = 'PIX_Regenerado'; tentativasIncrement = 1; }
+    else if (evento === 'pago') { statusPagamento = 'Pago'; }
+    else if (evento === 'falhou_cartao') { statusPagamento = 'Falhou_Cartao'; }
+
+    // Check if row exists by ID Pedido
+    const searchRes = await fetch(
+      `https://api.baserow.io/api/database/rows/table/${BASEROW_TABLE_ID}/?user_field_names=true&filter__ID+Pedido__equal=${encodeURIComponent(codigoCurto)}`,
+      { headers: { 'Authorization': `Token ${BASEROW_TOKEN}` } }
+    );
+
+    const searchData = await searchRes.json().catch(() => ({ results: [] }));
+    const existingRow = searchData.results?.[0];
+
+    const nowIso = new Date().toISOString();
+
+    if (existingRow) {
+      // UPDATE existing row
+      const currentTentativas = existingRow['Tentativas_PIX'] || 0;
+      const updatePayload: any = {
+        'Status_Pagamento': statusPagamento,
+        'Ultima_Acao': nowIso,
+      };
+      if (tentativasIncrement > 0) {
+        updatePayload['Tentativas_PIX'] = currentTentativas + tentativasIncrement;
+      }
+      const patchRes = await fetch(
+        `https://api.baserow.io/api/database/rows/table/${BASEROW_TABLE_ID}/${existingRow.id}/?user_field_names=true`,
+        {
+          method: 'PATCH',
+          headers: { 'Authorization': `Token ${BASEROW_TOKEN}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(updatePayload),
+        }
+      );
+      if (!patchRes.ok) {
+        log('WARN', 'BASEROW', `Failed to update row ${existingRow.id} for ${codigoCurto}`, { requestId: rId, meta: { status: patchRes.status } });
+      } else {
+        log('INFO', 'BASEROW', `Updated row ${existingRow.id} for ${codigoCurto} → ${statusPagamento}`, { requestId: rId });
+      }
+    } else if (evento === 'criado') {
+      // CREATE new row
+      const historia = [pedido.campoA, pedido.campoB, pedido.campoC].filter(Boolean).join('\n\n');
+      const createPayload = {
+        'Nome_Comprador': pedido.compradorNome || '',
+        'whatsapp': pedido.compradorWhatsApp || '',
+        'Nome_Homenageado': pedido.nome || '',
+        'Estilo Musical': pedido.estilo || '',
+        'Historia Base': historia.substring(0, 4000),
+        'Vinculo Relacionamento': pedido.vinculo || '',
+        'Genero Vocal': pedido.voz || '',
+        'ID Pedido': codigoCurto,
+        'registro_obra': codigoCurto,
+        'data_criacao': pedido.criadoEm || nowIso,
+        'Ticket_Gasto': pedido.valor || 47.00,
+        'Status_Pagamento': statusPagamento,
+        'Tentativas_PIX': 0,
+        'Ultima_Acao': nowIso,
+      };
+      const postRes = await fetch(
+        `https://api.baserow.io/api/database/rows/table/${BASEROW_TABLE_ID}/?user_field_names=true`,
+        {
+          method: 'POST',
+          headers: { 'Authorization': `Token ${BASEROW_TOKEN}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(createPayload),
+        }
+      );
+      if (!postRes.ok) {
+        log('WARN', 'BASEROW', `Failed to create row for ${codigoCurto}`, { requestId: rId, meta: { status: postRes.status } });
+      } else {
+        const created = await postRes.json();
+        log('INFO', 'BASEROW', `Created row ${created.id} for ${codigoCurto}`, { requestId: rId });
+      }
+    }
+  } catch (err: any) {
+    log('WARN', 'BASEROW', `Sync failed for ${pedido?.codigoCurto || '?'}: ${err.message}`, { requestId, error: errorPayload(err) });
+  }
+}
 
 async function salvarAudiosNoVPS(
   audioBlobs: Record<string, string>,
@@ -633,6 +731,24 @@ app.post("/api/criar-pedido-com-pix", async (req: any, res: any) => {
 
     log('INFO', 'FIREBASE', `Pedido ${pedidoId} criado com código curto ${codigoCurto}`, { requestId });
 
+    // Fire-and-forget Baserow sync
+    const pedidoPayload = {
+      nome: pedidoData.nome,
+      estilo: pedidoData.estilo,
+      voz: pedidoData.voz,
+      genero: pedidoData.genero,
+      compradorNome: pedidoData.compradorNome,
+      compradorWhatsApp: pedidoData.compradorWhatsApp,
+      campoA: pedidoData.campoA,
+      campoB: pedidoData.campoB,
+      campoC: pedidoData.campoC,
+      vinculo: pedidoData.vinculo,
+      codigoCurto,
+      criadoEm: agora,
+      valor: 47.00,
+    };
+    sincronizarProducao(pedidoPayload, 'criado', requestId);
+
     // 2. Tenta gerar PIX na Woovi (com timeout de 5s)
     let pixData = null;
     let pixGerado = false;
@@ -765,6 +881,9 @@ app.post("/api/webhook/pix", async (req: any, res: any) => {
           pagoEm: new Date().toISOString()
         }, { merge: true });
         log('INFO', 'WEBHOOK', `✔ Pedido ${pedidoId} marcado PAGO via PIX`, { requestId, meta: { pedidoId } });
+
+        // Fire-and-forget Baserow sync
+        sincronizarProducao({ codigoCurto: pedidoId }, 'pago', requestId);
       } else {
         log('WARN', 'WEBHOOK', 'Webhook PIX COMPLETED sem correlationID', { requestId, payload: sanitize(payload) });
       }
@@ -894,6 +1013,9 @@ app.post("/api/webhook/stripe", async (req: any, res: any) => {
           gateway: "stripe"
         }, { merge: true });
         log('INFO', 'FIREBASE', `✔ Pedido ${pedidoId} marcado PAGO via Stripe`, { requestId, meta: { pedidoId } });
+
+        // Fire-and-forget Baserow sync
+        sincronizarProducao({ codigoCurto: pedidoId }, 'pago', requestId);
       } else {
         log('WARN', 'WEBHOOK', 'Stripe PaymentIntent succeeded sem pedidoId no metadata', {
           requestId,

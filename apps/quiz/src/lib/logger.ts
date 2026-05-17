@@ -34,6 +34,7 @@ export type LogCategory =
   | 'FRONTEND_ERROR_LOG'
   | 'RATE_LIMIT'
   | 'AUDIO'
+  | 'BASEROW'
   | 'UNKNOWN';
 
 export interface LogEntry {
