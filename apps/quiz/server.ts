@@ -287,7 +287,7 @@ app.post("/api/pix", async (req: any, res: any) => {
         if (pedidoData.pixCopiaCola && pedidoData.pixCriadoEm) {
           // Verificar se PIX ainda está válido (não expirou)
           const pixIdadeMs = Date.now() - new Date(pedidoData.pixCriadoEm).getTime();
-          const PIX_EXPIRATION_MS = 25 * 60 * 1000; // 25 minutos
+          const PIX_EXPIRATION_MS = 30 * 60 * 1000; // 30 minutos (match com expiresIn Woovi e timer do front)
 
           if (pixIdadeMs > PIX_EXPIRATION_MS) {
             log('INFO', 'PIX', `PIX expirado para ${pedidoId} (idade: ${Math.round(pixIdadeMs / 60000)}min) — criando novo`, { requestId });
