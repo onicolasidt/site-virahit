@@ -285,16 +285,25 @@ app.post("/api/pix", async (req: any, res: any) => {
       if (pedidoDoc.exists()) {
         const pedidoData = pedidoDoc.data();
         if (pedidoData.pixCopiaCola && pedidoData.pixCriadoEm) {
-          log('INFO', 'PIX', `Pedido ${pedidoId} já tem PIX no Firestore — retornando dados existentes`, { requestId });
-          return res.json({
-            success: true,
-            charge: {
-              brCode: pedidoData.pixCopiaCola,
-              qrCodeImage: pedidoData.pixQRCodeUrl,
-              correlationID: pedidoId,
-              status: 'ACTIVE',
-            }
-          });
+          // Verificar se PIX ainda está válido (não expirou)
+          const pixIdadeMs = Date.now() - new Date(pedidoData.pixCriadoEm).getTime();
+          const PIX_EXPIRATION_MS = 25 * 60 * 1000; // 25 minutos
+
+          if (pixIdadeMs > PIX_EXPIRATION_MS) {
+            log('INFO', 'PIX', `PIX expirado para ${pedidoId} (idade: ${Math.round(pixIdadeMs / 60000)}min) — criando novo`, { requestId });
+            // NÃO retornar — continuar execução para criar novo PIX
+          } else {
+            log('INFO', 'PIX', `Pedido ${pedidoId} já tem PIX válido no Firestore — retornando dados existentes`, { requestId });
+            return res.json({
+              success: true,
+              charge: {
+                brCode: pedidoData.pixCopiaCola,
+                qrCodeImage: pedidoData.pixQRCodeUrl,
+                correlationID: pedidoId,
+                status: 'ACTIVE',
+              }
+            });
+          }
         }
       }
     } catch (fbErr: any) {
@@ -332,10 +341,18 @@ app.post("/api/pix", async (req: any, res: any) => {
         const existingData = await existingRes.json();
         const existingCharge = existingData.charge;
         if (existingCharge && existingCharge.brCode && existingCharge.status !== 'COMPLETED') {
-          log('INFO', 'PIX', `Cobrança PIX já existe para ${pedidoId} — reutilizando`, {
-            requestId, meta: { pedidoId, correlationID: existingCharge.correlationID, status: existingCharge.status }
-          });
-          return res.json({ success: true, charge: existingCharge });
+          // Verificar se a cobrança não está expirada
+          if (existingCharge.status === 'EXPIRED') {
+            log('INFO', 'PIX', `Cobrança PIX expirada na Woovi para ${pedidoId} — criando nova`, {
+              requestId, meta: { pedidoId, status: existingCharge.status }
+            });
+            // NÃO retornar — continuar para criar nova cobrança
+          } else {
+            log('INFO', 'PIX', `Cobrança PIX já existe para ${pedidoId} — reutilizando`, {
+              requestId, meta: { pedidoId, correlationID: existingCharge.correlationID, status: existingCharge.status }
+            });
+            return res.json({ success: true, charge: existingCharge });
+          }
         }
       }
     } catch (checkErr: any) {
