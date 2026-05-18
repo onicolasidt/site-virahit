@@ -212,37 +212,47 @@ newErrors.email = 'Digite um e-mail válido';
       const codigoCurto = result.codigoCurto;
 
       // Limpar TUDO do localStorage — sessão agora vive no servidor
-      localStorage.removeItem('virahit_audio_blobs');
-      localStorage.removeItem('virahit_quiz_data');
-      localStorage.removeItem('virahit_quiz_draft');
-      localStorage.removeItem('virahit_quiz_step');
-      localStorage.removeItem('virahit_rascunho_id');
+      try { localStorage.removeItem('virahit_audio_blobs'); } catch {}
+      try { localStorage.removeItem('virahit_quiz_data'); } catch {}
+      try { localStorage.removeItem('virahit_quiz_draft'); } catch {}
+      try { localStorage.removeItem('virahit_quiz_step'); } catch {}
+      try { localStorage.removeItem('virahit_rascunho_id'); } catch {}
 
       // Salva no localStorage apenas o essencial para o checkout (~200 bytes)
-      localStorage.setItem('idPedido', pedidoId);
-      localStorage.setItem('codigoPedido', codigoCurto);
-      localStorage.setItem('pedidoData', JSON.stringify({
-        nome: data.nome || '',
-        genero: data.genero || '',
-        estilo: data.estilo || '',
-        voz: data.voz || '',
-        compradorNome: nome,
-        compradorWhatsApp: '55' + cleanPhone(whatsapp).replace(/^55/, ''),
-        compradorEmail: email,
-        id: pedidoId,
-        codigoCurto,
-        status: 'pendente',
-        gateway: 'stripe',
-        pixGerado: result.pixGerado,
-      }));
-      if (result.pixGerado && result.pix) {
-        localStorage.setItem('pixData', JSON.stringify({
-          copiaCola: result.pix.copiaCola,
-          qrCodeUrl: result.pix.qrCodeUrl,
-          criadoEm: result.pix.criadoEm,
+      // Se localStorage estiver cheio (Safari 5MB quota), não bloqueia o fluxo — pedido já foi criado no servidor
+      try {
+        localStorage.setItem('idPedido', pedidoId);
+        localStorage.setItem('codigoPedido', codigoCurto);
+        localStorage.setItem('pedidoData', JSON.stringify({
+          nome: data.nome || '',
+          genero: data.genero || '',
+          estilo: data.estilo || '',
+          voz: data.voz || '',
+          compradorNome: nome,
+          compradorWhatsApp: '55' + cleanPhone(whatsapp).replace(/^55/, ''),
+          compradorEmail: email,
+          id: pedidoId,
+          codigoCurto,
+          status: 'pendente',
+          gateway: 'stripe',
+          pixGerado: result.pixGerado,
         }));
-        localStorage.setItem('pixCopiaCola', result.pix.copiaCola);
-        localStorage.setItem('pixQRCodeUrl', result.pix.qrCodeUrl);
+      } catch (storageErr: any) {
+        // Safari quota exceeded — não bloqueia checkout, polling funciona sem localStorage
+        console.warn('localStorage cheio ou indisponível, continuando sem persistir dados localmente:', storageErr?.message);
+      }
+      if (result.pixGerado && result.pix) {
+        try {
+          localStorage.setItem('pixData', JSON.stringify({
+            copiaCola: result.pix.copiaCola,
+            qrCodeUrl: result.pix.qrCodeUrl,
+            criadoEm: result.pix.criadoEm,
+          }));
+          localStorage.setItem('pixCopiaCola', result.pix.copiaCola);
+          localStorage.setItem('pixQRCodeUrl', result.pix.qrCodeUrl);
+        } catch (storageErr: any) {
+          console.warn('localStorage cheio ao salvar pixData:', storageErr?.message);
+        }
       }
 
       // Escrever código curto na URL

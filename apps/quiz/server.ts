@@ -5,7 +5,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { db } from "./src/lib/firebase";
-import { doc, getDoc, setDoc, collection } from "firebase/firestore";
+import { doc, getDoc, setDoc, collection, query, where, getDocs, limit } from "firebase/firestore";
 import Stripe from 'stripe';
 import { log, generateRequestId, sanitize, errorPayload } from './src/lib/logger.js';
 
@@ -82,6 +82,8 @@ app.use('/api/webhook/stripe', express.raw({ type: 'application/json' }));
 // Body parser com limite generoso para payload grandes (session com audio base64)
 app.use(express.json({ limit: '10mb' }));
 app.use(express.text({ type: '*/*', limit: '10mb' }));
+app.use('/audios', express.static(path.join(process.cwd(), 'uploads', 'audios')));
+app.use('/audios', express.static(path.join(process.cwd(), 'uploads', 'rascunhos')));
 
 // Rate limiting simples em memória para endpoints de pagamento (preparação escala)
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
@@ -242,6 +244,55 @@ app.get("/api/rascunho/:id", async (req: any, res: any) => {
   } catch (err: any) {
     log('ERROR', 'SERVER', `Erro ao buscar rascunho: ${err.message}`, { requestId, error: errorPayload(err) });
     res.status(500).json({ error: "Erro ao buscar rascunho" });
+  }
+});
+
+// ==========================================
+// GET /api/pedido/:codigoCurto — Busca pedido por código curto (servidor → Firestore)
+// Resolve lentidão do Client SDK no browser (20s → <1s)
+// ==========================================
+app.get("/api/pedido/:codigoCurto", async (req: any, res: any) => {
+  const requestId = req._requestId ?? generateRequestId();
+  try {
+    const { codigoCurto } = req.params;
+    if (!codigoCurto) return res.status(400).json({ error: "Código do pedido obrigatório" });
+
+    let data: any = null;
+    let docId = '';
+
+    // 1. Tentar buscar pelo código curto (mais comum)
+    if (codigoCurto.startsWith('VH-')) {
+      const q = query(
+        collection(db, "pedidos"),
+        where("codigoCurto", "==", codigoCurto),
+        limit(1)
+      );
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        docId = snap.docs[0].id;
+        data = snap.docs[0].data();
+      }
+    }
+
+    // 2. Se não achou (ou não é código curto), tentar por ID direto
+    if (!data) {
+      const snap = await getDoc(doc(db, "pedidos", codigoCurto));
+      if (snap.exists()) {
+        docId = snap.id;
+        data = snap.data();
+      }
+    }
+
+    if (!data) {
+      return res.status(404).json({ error: "Pedido não encontrado" });
+    }
+
+    log('INFO', 'SERVER', `Pedido ${codigoCurto} encontrado via API (${docId})`, { requestId });
+    res.json({ success: true, pedido: { idPedido: docId, ...data } });
+
+  } catch (err: any) {
+    log('ERROR', 'SERVER', `Erro ao buscar pedido ${req.params.codigoCurto}: ${err.message}`, { requestId, error: errorPayload(err) });
+    res.status(500).json({ error: "Erro ao buscar pedido" });
   }
 });
 
@@ -482,7 +533,7 @@ const MAX_TOTAL_AUDIO_SIZE_BYTES = 20 * 1024 * 1024; // 20 MB
 const BASEROW_TOKEN = 'cWMKvF1vPQUFlKZsFV3F1raIQ8s1bWrj';
 const BASEROW_TABLE_ID = '901528';
 
-async function sincronizarProducao(pedido: any, evento: string, requestId?: string) {
+async function sincronizarProducao(pedido: any, evento: string, requestId?: string, audioFiles?: Array<{ campo: string; path: string }>) {
   try {
     const rId = requestId || generateRequestId();
     const codigoCurto = pedido.codigoCurto || pedido.idPedido;
@@ -530,10 +581,23 @@ async function sincronizarProducao(pedido: any, evento: string, requestId?: stri
       } else {
         log('INFO', 'BASEROW', `Updated row ${existingRow.id} for ${codigoCurto} → ${statusPagamento}`, { requestId: rId });
       }
-    } else if (evento === 'criado') {
-      // CREATE new row
+    } else if (evento === 'criado' || evento === 'pix_gerado' || evento === 'pix_regenerado') {
+      // CREATE new row (criado, pix_gerado, pix_regenerado — todos criam se não existir)
       const historia = [pedido.campoA, pedido.campoB, pedido.campoC].filter(Boolean).join('\n\n');
-      const createPayload = {
+
+      // Mapeia audioFiles → campos Baserow
+      const audioUrls: Record<string, string> = {};
+      if (audioFiles && audioFiles.length > 0) {
+        for (const af of audioFiles) {
+          const url = `https://virahit.ai/${af.path}`;
+          const c = af.campo.toLowerCase();
+          if (c.includes('nome')) audioUrls['Audio_Nome'] = url;
+          else if (c.includes('campoa') || c.includes('campo_a')) audioUrls['Audio_Campo_A'] = url;
+          else audioUrls['Audio_Campo_B_C'] = url; // campoB, campoC, campoCOutro, outro
+        }
+      }
+
+      const createPayload: any = {
         'Nome_Comprador': pedido.compradorNome || '',
         'whatsapp': pedido.compradorWhatsApp || '',
         'Nome_Homenageado': pedido.nome || '',
@@ -546,8 +610,9 @@ async function sincronizarProducao(pedido: any, evento: string, requestId?: stri
         'data_criacao': pedido.criadoEm || nowIso,
         'Ticket_Gasto': pedido.valor || 47.00,
         'Status_Pagamento': statusPagamento,
-        'Tentativas_PIX': 0,
+        'Tentativas_PIX': tentativasIncrement,
         'Ultima_Acao': nowIso,
+        ...audioUrls,
       };
       const postRes = await fetch(
         `https://api.baserow.io/api/database/rows/table/${BASEROW_TABLE_ID}/?user_field_names=true`,
@@ -644,9 +709,15 @@ app.post("/api/criar-pedido-com-pix", async (req: any, res: any) => {
       audioBlobs, audioNome, audioCampoA, audioCampoB, audioCampoCOutro
     } = req.body;
 
+    // Sanitizar undefined → string vazia (Firestore rejeita undefined como valor de campo)
+    const safeNome = nome || '';
+    const safeEstilo = estilo || '';
+    const safeVoz = voz || '';
+    const safeGenero = genero || '';
+
     // === NOVO: se receber rascunhoId, busca dados do Firestore ===
     let pedidoData: any = {
-      nome, estilo, voz, genero,
+      nome: safeNome, estilo: safeEstilo, voz: safeVoz, genero: safeGenero,
       compradorNome, compradorWhatsApp, compradorEmail,
       campoA, campoB, campoC, campoCOutro, vinculo,
       audioBlobs, audioNome, audioCampoA, audioCampoB, audioCampoCOutro
@@ -659,10 +730,10 @@ app.post("/api/criar-pedido-com-pix", async (req: any, res: any) => {
           const rascunho = JSON.parse(fs.readFileSync(arquivoPath, 'utf-8'));
           // Mescla dados do rascunho com dados do body (body tem prioridade para contato)
           pedidoData = {
-            nome: rascunho.nome || nome,
-            estilo: rascunho.estilo || estilo,
-            voz: rascunho.voz || voz,
-            genero: rascunho.genero || genero,
+            nome: rascunho.nome || safeNome,
+            estilo: rascunho.estilo || safeEstilo,
+            voz: rascunho.voz || safeVoz,
+            genero: rascunho.genero || safeGenero,
             compradorNome: compradorNome || rascunho.compradorNome,
             compradorWhatsApp: compradorWhatsApp || rascunho.compradorWhatsApp,
             compradorEmail: compradorEmail || rascunho.compradorEmail,
@@ -730,24 +801,6 @@ app.post("/api/criar-pedido-com-pix", async (req: any, res: any) => {
     });
 
     log('INFO', 'FIREBASE', `Pedido ${pedidoId} criado com código curto ${codigoCurto}`, { requestId });
-
-    // Fire-and-forget Baserow sync
-    const pedidoPayload = {
-      nome: pedidoData.nome,
-      estilo: pedidoData.estilo,
-      voz: pedidoData.voz,
-      genero: pedidoData.genero,
-      compradorNome: pedidoData.compradorNome,
-      compradorWhatsApp: pedidoData.compradorWhatsApp,
-      campoA: pedidoData.campoA,
-      campoB: pedidoData.campoB,
-      campoC: pedidoData.campoC,
-      vinculo: pedidoData.vinculo,
-      codigoCurto,
-      criadoEm: agora,
-      valor: 47.00,
-    };
-    sincronizarProducao(pedidoPayload, 'criado', requestId);
 
     // 2. Tenta gerar PIX na Woovi (com timeout de 5s)
     let pixData = null;
@@ -821,6 +874,27 @@ app.post("/api/criar-pedido-com-pix", async (req: any, res: any) => {
       durationMs: Date.now() - startMs,
       meta: { pedidoId, codigoCurto, pixGerado }
     });
+
+    // Fire-and-forget Baserow sync — se PIX já foi gerado nesta request, usa evento 'pix_gerado'
+    // para que o status no Baserow reflita corretamente (PIX_Gerado + Tentativas_PIX=1)
+    const baserowEvento = pixGerado ? 'pix_gerado' : 'criado';
+    const pedidoPayload = {
+      nome: pedidoData.nome,
+      estilo: pedidoData.estilo,
+      voz: pedidoData.voz,
+      genero: pedidoData.genero,
+      compradorNome: pedidoData.compradorNome,
+      compradorWhatsApp: pedidoData.compradorWhatsApp,
+      compradorEmail: pedidoData.compradorEmail,
+      campoA: pedidoData.campoA,
+      campoB: pedidoData.campoB,
+      campoC: pedidoData.campoC,
+      vinculo: pedidoData.vinculo,
+      codigoCurto,
+      criadoEm: agora,
+      valor: 47.00,
+    };
+    sincronizarProducao(pedidoPayload, baserowEvento, requestId, audioFiles);
 
     res.json(responsePayload);
 
