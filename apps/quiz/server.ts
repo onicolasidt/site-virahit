@@ -586,14 +586,23 @@ async function sincronizarProducao(pedido: any, evento: string, requestId?: stri
       const historia = [pedido.campoA, pedido.campoB, pedido.campoC].filter(Boolean).join('\n\n');
 
       // Mapeia audioFiles → campos Baserow
+      // NOTA: campo Nome NÃO tem mais áudio. Apenas campoA, campoB, campoCOutro têm gravação.
       const audioUrls: Record<string, string> = {};
       if (audioFiles && audioFiles.length > 0) {
         for (const af of audioFiles) {
           const url = `https://virahit.ai/${af.path}`;
           const c = af.campo.toLowerCase();
-          if (c.includes('nome')) audioUrls['Audio_Nome'] = url;
-          else if (c.includes('campoa') || c.includes('campo_a')) audioUrls['Audio_Campo_A'] = url;
-          else audioUrls['Audio_Campo_B_C'] = url; // campoB, campoC, campoCOutro, outro
+          if (c.includes('campoa') || c.includes('campo_a') || c.includes('audioCampoA') || c.includes('audioNomeA')) {
+            audioUrls['Audio_Campo_A'] = url;
+          } else if (c.includes('campob') || c.includes('campo_b') || c.includes('audioCampoB')) {
+            audioUrls['Audio_Campo_B_C'] = url;
+          } else if (c.includes('campoc') || c.includes('campo_c') || c.includes('campocoutro') || c.includes('audioCampoCOutro')) {
+            audioUrls['Audio_Campo_B_C'] = url;
+          } else {
+            // Fallback: se o campo não for reconhecido, não mapeia para Baserow
+            // (antes ia para Audio_Nome indevidamente)
+            log('WARN', 'BASEROW', `Campo de áudio não mapeado: ${af.campo}`, { requestId: rId });
+          }
         }
       }
 
