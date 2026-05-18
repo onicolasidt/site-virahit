@@ -1199,7 +1199,7 @@ app.post("/api/log-erro", async (req: any, res: any) => {
       try {
         const { exec } = await import('child_process');
         try {
-          const scriptPath = '/home/hermes_general/empresa/funil-web/quiz-virahit-v2/scripts/log-frontend-error.py';
+          const scriptPath = '/home/hermes_general/empresa/site-virahit/apps/quiz/scripts/log-frontend-error.py';
           const TABLE_ID = process.env.BASEROW_ERROS_TABLE_ID || '974283';
           const proc = exec(`BASEROW_ERROS_TABLE_ID=${TABLE_ID} python3 ${scriptPath}`);
           proc.stdin!.write(JSON.stringify({
