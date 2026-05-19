@@ -10,30 +10,10 @@
     <link rel="preconnect" href="https://fast.wistia.com" />
     <link rel="preconnect" href="https://embed-ssl.wistia.com" />
 
-    <!-- Meta Pixel Code -->
-    <script>
-      !function(f,b,e,v,n,t,s)
-      {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-      n.callMethod.apply(n,arguments):n.queue.push(arguments)};
-      if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-      n.queue=[];t=b.createElement(e);t.async=!0;
-      t.src=v;s=b.getElementsByTagName(e)[0];
-      s.parentNode.insertBefore(t,s)}(window, document,'script',
-      'https://connect.facebook.net/en_US/fbevents.js');
-      fbq('init', '1701508704633092');
-      fbq('track', 'PageView');
-    </script>
-    <!-- End Meta Pixel Code -->
-
-    <!-- Google Analytics GA4 — send_page_view desabilitado para SPA tracking manual -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-QPZX97Z35S"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', 'G-QPZX97Z35S', { send_page_view: false });
-    </script>
-    <!-- End Google Analytics GA4 -->
+    <!-- DNS prefetch para domínios de tracking (resolve DNS antes, sem abrir conexão) -->
+    <link rel="dns-prefetch" href="https://connect.facebook.net" />
+    <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
+    <link rel="dns-prefetch" href="https://www.facebook.com" />
 
     <!-- Preload Logos for Instant Branded Loaders -->
     <link rel="preload" href="/logovirahitaiversaoinstitucionalvfinal.svg" as="image" type="image/svg+xml" />
@@ -91,12 +71,51 @@
 
   </head>
   <body>
-    <!-- Meta Pixel noscript -->
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+
+    <!-- Tracking deferido — requestIdleCallback para NÃO competir com LCP/TBT -->
+    <!-- Meta Pixel e GA4 carregam DEPOIS da renderização inicial -->
+    <script>
+    (function() {
+      function loadTracking() {
+        // === META PIXEL (CAPI + Pixel) ===
+        !function(f,b,e,v,n,t,s)
+        {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+        n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+        if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+        n.queue=[];t=b.createElement(e);t.async=!0;
+        t.src=v;s=b.getElementsByTagName(e)[0];
+        s.parentNode.insertBefore(t,s)}(window, document,'script',
+        'https://connect.facebook.net/en_US/fbevents.js');
+        fbq('init', '1701508704633092');
+        fbq('track', 'PageView');
+
+        // === GA4 (Google Analytics) ===
+        window.dataLayer = window.dataLayer || [];
+        window.gtag = window.gtag || function(){dataLayer.push(arguments);};
+        window.gtag('js', new Date());
+        window.gtag('config', 'G-QPZX97Z35S', { send_page_view: false });
+        var gtagScript = document.createElement('script');
+        gtagScript.async = true;
+        gtagScript.src = 'https://www.googletagmanager.com/gtag/js?id=G-QPZX97Z35S';
+        document.head.appendChild(gtagScript);
+      }
+
+      // Carrega tracking DEPOIS do LCP — não bloqueia renderização
+      if ('requestIdleCallback' in window) {
+        requestIdleCallback(loadTracking, { timeout: 3000 });
+      } else {
+        // Safari fallback: 1.5s é suficiente para FCP + LCP em 4G
+        setTimeout(loadTracking, 1500);
+      }
+    })();
+    </script>
+
+    <!-- Meta Pixel noscript fallback (para browsers sem JS) -->
     <noscript><img height="1" width="1" style="display:none"
       src="https://www.facebook.com/tr?id=1701508704633092&ev=PageView&noscript=1"
     /></noscript>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
 
