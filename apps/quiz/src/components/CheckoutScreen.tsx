@@ -419,7 +419,7 @@ function CardForm({ onSwitchToPix, onPaymentConfirmed, pedidoId }: CardFormProps
 }
 
 import { salvarPedido, buscarPedido, buscarPedidoPorCodigoCurto, db } from '../lib/firebase';
-import { doc, onSnapshot, getDoc } from 'firebase/firestore';
+import { doc, onSnapshot } from 'firebase/firestore';
 
 function getWhatsAppUrl(session: SessionData) {
   const nomeFormatado = session.nome ? session.nome.charAt(0).toUpperCase() + session.nome.slice(1).toLowerCase() : 'a pessoa';
@@ -463,33 +463,39 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
       const urlPedidoId = params.get('pedido');
 
       if (urlPedidoId) {
-        // Busca no Firestore — mostrar loading enquanto verifica
+        // Busca no servidor — evita lentidão do Client SDK no browser (20s → <1s)
         setCheckingPaidStatus(true);
-        // Código curto (VH-XXXXXX) ou ID real
-        let idParaBuscar = urlPedidoId;
-        let isCodigoCurto = urlPedidoId.startsWith('VH-');
 
-        if (isCodigoCurto) {
-          // Primeiro: tentar achar no localStorage (mesmo dispositivo)
-          const idReal = localStorage.getItem('idPedido');
-          if (idReal) idParaBuscar = idReal;
-        }
+        try {
+          const resp = await fetch(`/api/pedido/${encodeURIComponent(urlPedidoId)}`);
+          if (resp.ok) {
+            const result = await resp.json();
+            const data = result.pedido;
+            const idParaBuscar = data.idPedido || urlPedidoId;
 
-        let data = await buscarPedido(idParaBuscar);
+            const p = data;
+            // Pedido já pago? Mostrar tela de obrigado
+            if (p.status === 'pago') {
+              setSession({
+                nome: p.nome || '',
+                generoDestinatario: p.genero === 'F' ? 'F' : 'M',
+                estiloMusical: p.estilo || p.estiloMusical || '',
+                vozMusical: p.voz || p.vozMusical || '',
+                compradorNome: p.compradorNome || '',
+                compradorWhatsApp: p.compradorWhatsApp || '',
+                compradorEmail: p.compradorEmail || '',
+                idPedido: idParaBuscar,
+                pixQRCodeUrl: p.pixQRCodeUrl || '',
+                pixCopiaCola: p.pixCopiaCola || '',
+                dataEntregaGarantida: p.dataEntregaGarantida || '',
+              });
+              setPageState('confirmed');
+              setRedirectCountdown(null); // não redireciona automaticamente
+              setCheckingPaidStatus(false);
+              return;
+            }
 
-        // Se não achou e é código curto, buscar pelo campo codigoCurto no Firestore
-        if (!data && isCodigoCurto) {
-          data = await buscarPedidoPorCodigoCurto(urlPedidoId);
-          if (data) {
-            // Achou pelo código curto — usar o ID real do documento
-            idParaBuscar = (data as any).idPedido || idParaBuscar;
-          }
-        }
-
-        if (data) {
-          const p = data as any;
-          // Pedido já pago? Mostrar tela de obrigado
-          if (p.status === 'pago') {
+            // Mapear campos Firestore (estilo/voz/genero) para SessionData
             setSession({
               nome: p.nome || '',
               generoDestinatario: p.genero === 'F' ? 'F' : 'M',
@@ -502,52 +508,33 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
               pixQRCodeUrl: p.pixQRCodeUrl || '',
               pixCopiaCola: p.pixCopiaCola || '',
               dataEntregaGarantida: p.dataEntregaGarantida || '',
+              ...(p.campoA !== undefined && { campoA: p.campoA }),
+              ...(p.campoB !== undefined && { campoB: p.campoB }),
+              ...(p.campoC !== undefined && { campoC: p.campoC }),
+              ...(p.campoCOutro !== undefined && { campoCOutro: p.campoCOutro }),
+              ...(p.vinculo !== undefined && { vinculo: p.vinculo }),
+              ...(p.genero !== undefined && { genero: p.genero }),
             });
-            setPageState('confirmed');
-            setRedirectCountdown(null); // não redireciona automaticamente
+            // Calcular tempo restante real do PIX com base em pixCriadoEm
+            if (p.pixCopiaCola && p.pixCriadoEm) {
+              const criadoEm = new Date(p.pixCriadoEm).getTime();
+              const expiresAt = criadoEm + 30 * 60 * 1000;
+              const segundosRestantes = Math.floor((expiresAt - Date.now()) / 1000);
+              if (segundosRestantes <= 0) {
+                setPixState('expired');
+                setTimeLeft(0);
+              } else {
+                setPixState('active');
+                setTimeLeft(segundosRestantes);
+              }
+            }
+            // PIX já existe no Firestore — não precisa gerar, para o loading
+            if (p.pixCopiaCola) setPixGenerating(false);
             setCheckingPaidStatus(false);
+            setDataLoaded(true);
             return;
           }
-
-          // Mapear campos Firestore (estilo/voz/genero) para SessionData
-          setSession({
-            nome: p.nome || '',
-            generoDestinatario: p.genero === 'F' ? 'F' : 'M',
-            estiloMusical: p.estilo || p.estiloMusical || '',
-            vozMusical: p.voz || p.vozMusical || '',
-            compradorNome: p.compradorNome || '',
-            compradorWhatsApp: p.compradorWhatsApp || '',
-            compradorEmail: p.compradorEmail || '',
-            idPedido: idParaBuscar,
-            pixQRCodeUrl: p.pixQRCodeUrl || '',
-            pixCopiaCola: p.pixCopiaCola || '',
-            dataEntregaGarantida: p.dataEntregaGarantida || '',
-            ...(p.campoA !== undefined && { campoA: p.campoA }),
-            ...(p.campoB !== undefined && { campoB: p.campoB }),
-            ...(p.campoC !== undefined && { campoC: p.campoC }),
-            ...(p.campoCOutro !== undefined && { campoCOutro: p.campoCOutro }),
-            ...(p.vinculo !== undefined && { vinculo: p.vinculo }),
-            ...(p.genero !== undefined && { genero: p.genero }),
-          });
-          // Calcular tempo restante real do PIX com base em pixCriadoEm
-          if (p.pixCopiaCola && p.pixCriadoEm) {
-            const criadoEm = new Date(p.pixCriadoEm).getTime();
-            const expiresAt = criadoEm + 30 * 60 * 1000;
-            const segundosRestantes = Math.floor((expiresAt - Date.now()) / 1000);
-            if (segundosRestantes <= 0) {
-              setPixState('expired');
-              setTimeLeft(0);
-            } else {
-              setPixState('active');
-              setTimeLeft(segundosRestantes);
-            }
-          }
-          // PIX já existe no Firestore — não precisa gerar, para o loading
-          if (p.pixCopiaCola) setPixGenerating(false);
-          setCheckingPaidStatus(false);
-          setDataLoaded(true);
-          return;
-        }
+        } catch { /* pedido não encontrado ou erro — continua pro localStorage */ }
       }
 
       // Nenhum pedido encontrado via URL — prossegue com localStorage
@@ -792,17 +779,24 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
       }
     });
 
-    // Polling de backup — inicia 30s após PIX ativo, verifica a cada 15s
+    // Polling de backup via servidor — evita throttling do Client SDK no celular
+    // O servidor responde em <1s, então pode verificar mais frequente que o getDoc
     const pollingDelay = setTimeout(() => {
       pollingRef.current = setInterval(async () => {
         try {
-          const snap = await getDoc(doc(db, 'pedidos', session.idPedido));
-          if (snap.exists() && snap.data().status === 'pago') {
-            confirmarPagamento();
+          const resp = await fetch(`/api/pedido/${encodeURIComponent(session.idPedido)}`);
+          if (resp.ok) {
+            const result = await resp.json();
+            if (result.pedido?.status === 'pago') {
+              confirmarPagamento();
+            } else if (result.pedido?.status === 'expirado') {
+              if (timerRef.current) clearInterval(timerRef.current);
+              setPixState('expired');
+            }
           }
         } catch { /* falha silenciosa — onSnapshot continua como primario */ }
-      }, 15000);
-    }, 30000);
+      }, 10000); // 10s (servidor é rápido, não precisa esperar 15s)
+    }, 10000); // inicia em 10s (não precisa esperar 30s, servidor não tem throttling)
 
     return () => {
       unsub();
