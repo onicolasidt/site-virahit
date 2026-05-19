@@ -6,14 +6,11 @@
     <link rel="apple-touch-icon" href="/favicon-64.png?v=8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     
-    <!-- Preconnect a origens de terceiros críticas -->
+    <!-- Preconnect a origens críticas — resolve DNS + TCP + TLS antes de precisar -->
     <link rel="preconnect" href="https://fast.wistia.com" />
     <link rel="preconnect" href="https://embed-ssl.wistia.com" />
-
-    <!-- DNS prefetch para domínios de tracking (resolve DNS antes, sem abrir conexão) -->
-    <link rel="dns-prefetch" href="https://connect.facebook.net" />
-    <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
-    <link rel="dns-prefetch" href="https://www.facebook.com" />
+    <link rel="preconnect" href="https://connect.facebook.net" crossorigin />
+    <link rel="preconnect" href="https://www.googletagmanager.com" />
 
     <!-- Preload Logos for Instant Branded Loaders -->
     <link rel="preload" href="/logovirahitaiversaoinstitucionalvfinal.svg" as="image" type="image/svg+xml" />
