@@ -8,10 +8,23 @@
  * 
  * Resultado: HTML chega com conteúdo real → PSI estimado 70 → 75-80.
  * 
+ * Se Puppeteer/Chrome não estiverem disponíveis (ex: Vercel build),
+ * o script encerra graciosamente sem erro — o deploy funciona com HTML vazio.
+ * Para builds locais com prerender: npm run build (com Chrome instalado)
+ * Para builds CI/Vercel sem prerender: npm run build:vite
+ * 
  * Uso: node scripts/prerender.cjs
  */
 
-const puppeteer = require('puppeteer');
+// Try to load Puppeteer — if not available (Vercel CI), skip prerender gracefully
+let puppeteer;
+try {
+  puppeteer = require('puppeteer');
+} catch (e) {
+  console.log('[prerender] Puppeteer não disponível. Pulando pré-renderização.');
+  console.log('[prerender] Para habilitar: npm install puppeteer && npm run build');
+  process.exit(0);
+}
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
