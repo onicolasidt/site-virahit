@@ -10,7 +10,7 @@
  * - All tracking calls use requestIdleCallback to NOT compete with LCP
  * - NEVER send PII (name, email, phone) — only business context params
  * 
- * Measurement ID: G-1450VVBCMP
+ * Measurement ID: G-QPZX97Z35S
  */
 
 declare global {
