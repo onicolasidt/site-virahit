@@ -896,13 +896,16 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
     // Para efeito de demonstração na interface se a api nao estiver ali
     if (!session.pixCopiaCola) {
         setTimeout(() => {
-            trackMetaEvent('Purchase', {
-              value: 47.00,
-              currency: 'BRL',
-              content_ids: ['music-personalizada'],
-              content_type: 'product',
-              num_items: 1,
-            });
+            if (!purchaseTracked.current) {
+              purchaseTracked.current = true;
+              trackMetaEvent('Purchase', {
+                value: 47.00,
+                currency: 'BRL',
+                content_ids: ['music-personalizada'],
+                content_type: 'product',
+                num_items: 1,
+              });
+            }
             if (timerRef.current) clearInterval(timerRef.current);
             setPageState('confirmed');
             setRedirectCountdown(15);
