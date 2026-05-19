@@ -119,13 +119,15 @@ async function prerender() {
   const server = await createStaticServer(DIST_DIR, PORT);
 
   // Puppeteer
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-gpu',
+  let browser;
+  try {
+    browser = await puppeteer.launch({
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
       '--disable-software-rasterizer',
       '--no-first-run',
       '--no-zygote',
@@ -133,6 +135,12 @@ async function prerender() {
     ],
   });
   console.log('[prerender] Puppeteer iniciado');
+  } catch (launchErr) {
+    console.log('[prerender] Chrome não disponível. Pulando pré-renderização.');
+    console.log('[prerender] Erro:', launchErr.message);
+    server.close();
+    process.exit(0);
+  }
 
   for (const route of ROUTES) {
     const url = `http://localhost:${PORT}${route}`;
