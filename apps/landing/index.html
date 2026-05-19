@@ -6,15 +6,16 @@
     <link rel="apple-touch-icon" href="/favicon-64.png?v=8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     
-    <!-- Preconnect a origens críticas — resolve DNS + TCP + TLS antes de precisar -->
-    <link rel="preconnect" href="https://fast.wistia.com" />
-    <link rel="preconnect" href="https://embed-ssl.wistia.com" />
+    <!-- Preconnect a origens de tracking — Wistia preconnect removido (carrega só no click) -->
     <link rel="preconnect" href="https://connect.facebook.net" crossorigin />
     <link rel="preconnect" href="https://www.googletagmanager.com" />
 
     <!-- Preload Logos for Instant Branded Loaders -->
     <link rel="preload" href="/logovirahitaiversaoinstitucionalvfinal.svg" as="image" type="image/svg+xml" />
     <link rel="preload" href="/logovirahitaiversaomeulouvorvfinal.svg" as="image" type="image/svg+xml" />
+
+    <!-- Preload LCP image (vídeo thumbnail) -->
+    <link rel="preload" href="/video-thumbnail.webp" as="image" type="image/webp" fetchpriority="high" />
 
     <!-- Preload fontes críticas do hero (elimina cadeia de requisições sequenciais) -->
     <link rel="preload" href="/fonts/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2" as="font" type="font/woff2" crossorigin />
