@@ -1242,6 +1242,157 @@ app.post("/api/log-erro", async (req: any, res: any) => {
 });
 
 // ==========================================
+// POST /api/meta-capi — Meta Conversions API server-side tracking
+// ==========================================
+app.post("/api/meta-capi", async (req: any, res: any) => {
+  const requestId = req._requestId ?? generateRequestId();
+  const startMs = req._startMs ?? Date.now();
+
+  try {
+    const {
+      event_name,
+      event_id,
+      event_time,
+      user_data,
+      fbp,
+      fbc,
+      event_source_url,
+      value,
+      currency,
+      content_ids,
+      content_type,
+      action_source,
+    } = req.body || {};
+
+    if (!event_name || !event_id || !event_time) {
+      return res.status(400).json({ success: false, error: "event_name, event_id, event_time obrigatórios" });
+    }
+
+    const META_PIXEL_ID = process.env.META_PIXEL_ID;
+    const META_CAPI_TOKEN = process.env.META_CAPI_TOKEN;
+    const META_TEST_EVENT_CODE = process.env.META_TEST_EVENT_CODE;
+
+    if (!META_PIXEL_ID || !META_CAPI_TOKEN) {
+      log('ERROR', 'META_CAPI', 'META_PIXEL_ID ou META_CAPI_TOKEN não configurado', { requestId });
+      return res.status(500).json({ success: false, error: "Meta CAPI não configurado" });
+    }
+
+    // Normalizar e hash user data
+    const crypto = await import('crypto');
+    function normalize(val: string | undefined): string {
+      if (!val) return '';
+      return val.toString().toLowerCase().trim();
+    }
+    function hash(val: string): string {
+      if (!val) return '';
+      return crypto.createHash('sha256').update(val).digest('hex');
+    }
+
+    const normalizedUserData: Record<string, any> = {};
+
+    if (user_data?.email) {
+      normalizedUserData.em = hash(normalize(user_data.email));
+    }
+    if (user_data?.phone) {
+      let phoneNormalized = user_data.phone.toString().replace(/\D/g, '');
+      // Add +55 if missing and starts with digit
+      if (phoneNormalized && !phoneNormalized.startsWith('55')) {
+        phoneNormalized = '55' + phoneNormalized;
+      }
+      normalizedUserData.ph = hash('+' + phoneNormalized);
+    }
+    if (user_data?.first_name) {
+      normalizedUserData.fn = hash(normalize(user_data.first_name));
+    }
+    if (user_data?.last_name) {
+      normalizedUserData.ln = hash(normalize(user_data.last_name));
+    }
+
+    // Dados não hashados
+    const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || '';
+    const clientUserAgent = req.headers['user-agent'] || '';
+
+    if (clientIp) normalizedUserData.client_ip_address = clientIp;
+    if (clientUserAgent) normalizedUserData.client_user_agent = clientUserAgent;
+    if (fbp) normalizedUserData.fbp = fbp;
+    if (fbc) normalizedUserData.fbc = fbc;
+
+    // Build payload
+    const eventData: Record<string, any> = {
+      event_name,
+      event_time,
+      event_id,
+      event_source_url: event_source_url || 'https://virahit.ai/quiz/',
+      action_source: action_source || 'website',
+      user_data: normalizedUserData,
+    };
+
+    // Custom data para eventos de e-commerce
+    if (value || currency || content_ids || content_type) {
+      eventData.custom_data = {};
+      if (value) eventData.custom_data.value = value;
+      if (currency) eventData.custom_data.currency = currency;
+      if (content_ids) eventData.custom_data.content_ids = content_ids;
+      if (content_type) eventData.custom_data.content_type = content_type;
+    }
+
+    const payload: Record<string, any> = {
+      data: [eventData],
+    };
+
+    if (META_TEST_EVENT_CODE) {
+      payload.test_event_code = META_TEST_EVENT_CODE;
+    }
+
+    log('INFO', 'META_CAPI', `Enviando evento ${event_name} (${event_id})`, {
+      requestId,
+      meta: { event_name, event_id, test_mode: !!META_TEST_EVENT_CODE }
+    });
+
+    // Enviar para Meta
+    const metaRes = await fetch(`https://graph.facebook.com/v18.0/${META_PIXEL_ID}/events`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        ...payload,
+        access_token: META_CAPI_TOKEN,
+      }),
+    });
+
+    const metaData = await metaRes.json();
+
+    if (!metaRes.ok) {
+      log('ERROR', 'META_CAPI', `Meta API retornou ${metaRes.status}`, {
+        requestId,
+        statusCode: metaRes.status,
+        payload: sanitize(metaData),
+      });
+      // Don't block UI — return success even if CAPI fails
+      return res.json({ success: true });
+    }
+
+    log('INFO', 'META_CAPI', `✓ Evento ${event_name} enviado (${Date.now() - startMs}ms)`, {
+      requestId,
+      durationMs: Date.now() - startMs,
+      meta: { event_name, event_id, events_received: metaData.events_received }
+    });
+
+    res.json({ success: true, events_received: metaData.events_received });
+
+  } catch (err: any) {
+    log('ERROR', 'META_CAPI', `Erro ao enviar evento: ${err.message}`, {
+      requestId,
+      durationMs: Date.now() - startMs,
+      error: errorPayload(err),
+    });
+    // Don't block UI — return success even if CAPI fails
+    res.json({ success: true });
+  }
+});
+
+// ==========================================
 // Health check
 // ==========================================
 app.get("/api/health", (_req: any, res: any) => {

@@ -18,6 +18,7 @@ import {
 } from '@stripe/react-stripe-js';
 import { Lock, ShieldCheck, Copy, Check, Clock, Truck, CheckCircle, CreditCard, QrCode, Loader2, Share2 } from 'lucide-react';
 import { resolverGenero } from './Quiz';
+import { trackMetaEvent } from '../lib/metaTracking';
 
 // Initialize Stripe with VITE_STRIPE_PUBLISHABLE_KEY.
 // Handle gracefully if not set (it will return null to elements).
@@ -456,6 +457,7 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
   const redirectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fallbackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const copiedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const purchaseTracked = useRef(false); // Guard to prevent Purchase event double-firing
 
   useEffect(() => {
     async function loadData() {
@@ -665,6 +667,18 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
     loadData();
   }, []);
 
+  // Track InitiateCheckout when checkout page loads with data
+  useEffect(() => {
+    if (dataLoaded && pageState === 'checkout' && session.idPedido && session.idPedido !== 'demo-pedido') {
+      trackMetaEvent('InitiateCheckout', {
+        value: 47.00,
+        currency: 'BRL',
+        content_ids: ['music-personalizada'],
+        content_type: 'product',
+      });
+    }
+  }, [dataLoaded, pageState, session.idPedido]);
+
   // EAGER PIX: gerar QR code automaticamente assim que o pedido estiver carregado
   // (não espera o usuário clicar na aba PIX). Menos cliques = mais conversão.
   useEffect(() => {
@@ -757,6 +771,17 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
     if (!session.idPedido || session.idPedido === 'demo-pedido' || pageState === 'confirmed') return;
 
     const confirmarPagamento = () => {
+      // Guard: only fire Purchase event once per order
+      if (!purchaseTracked.current) {
+        purchaseTracked.current = true;
+        trackMetaEvent('Purchase', {
+          value: 47.00,
+          currency: 'BRL',
+          content_ids: ['music-personalizada'],
+          content_type: 'product',
+          num_items: 1,
+        });
+      }
       if (timerRef.current) clearInterval(timerRef.current);
       localStorage.removeItem('idPedido');
       localStorage.removeItem('pixQRCodeUrl');
@@ -871,6 +896,13 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
     // Para efeito de demonstração na interface se a api nao estiver ali
     if (!session.pixCopiaCola) {
         setTimeout(() => {
+            trackMetaEvent('Purchase', {
+              value: 47.00,
+              currency: 'BRL',
+              content_ids: ['music-personalizada'],
+              content_type: 'product',
+              num_items: 1,
+            });
             if (timerRef.current) clearInterval(timerRef.current);
             setPageState('confirmed');
             setRedirectCountdown(15);
@@ -1276,6 +1308,17 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
                     <ExpressOnlyForm
                       pedidoId={session.idPedido}
                       onPaymentConfirmed={() => {
+                        // Purchase event is tracked in confirmarPagamento with guard
+                        if (!purchaseTracked.current) {
+                          purchaseTracked.current = true;
+                          trackMetaEvent('Purchase', {
+                            value: 47.00,
+                            currency: 'BRL',
+                            content_ids: ['music-personalizada'],
+                            content_type: 'product',
+                            num_items: 1,
+                          });
+                        }
                         if (timerRef.current) clearInterval(timerRef.current);
                         ['idPedido','pixQRCodeUrl','pixCopiaCola','dataEntregaGarantida',
                          'compradorNome','compradorWhatsApp','generoDestinatario','estiloMusical','vozMusical'
@@ -1291,6 +1334,17 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
                     <CardForm
                       pedidoId={session.idPedido}
                       onPaymentConfirmed={() => {
+                        // Purchase event is tracked in confirmarPagamento with guard
+                        if (!purchaseTracked.current) {
+                          purchaseTracked.current = true;
+                          trackMetaEvent('Purchase', {
+                            value: 47.00,
+                            currency: 'BRL',
+                            content_ids: ['music-personalizada'],
+                            content_type: 'product',
+                            num_items: 1,
+                          });
+                        }
                         if (timerRef.current) clearInterval(timerRef.current);
                         setPageState('confirmed');
                         setRedirectCountdown(15);

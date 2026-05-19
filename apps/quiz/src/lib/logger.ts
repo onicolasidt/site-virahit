@@ -35,6 +35,7 @@ export type LogCategory =
   | 'RATE_LIMIT'
   | 'AUDIO'
   | 'BASEROW'
+  | 'META_CAPI'
   | 'UNKNOWN';
 
 export interface LogEntry {

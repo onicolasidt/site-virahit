@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, RefObject } from 'react';
 import { resolverGenero } from './Quiz';
 import { AUDIO_EXEMPLOS_CONVERSAO } from '../lib/audioExemplos';
+import { trackMetaEvent } from '../lib/metaTracking';
 
 interface ConversionScreenProps {
   onBackToQuiz: () => void;
@@ -115,6 +116,18 @@ export function ConversionScreen({ onBackToQuiz, onGoToCheckout }: ConversionScr
     setWhatsapp(localStorage.getItem('compradorWhatsApp') || '');
     setEmail(localStorage.getItem('compradorEmail') || '');
   }, []);
+
+  // Track AddToCart when conversion screen loads with data
+  useEffect(() => {
+    if (data && !isLoadingRascunho) {
+      trackMetaEvent('AddToCart', {
+        value: 47.00,
+        currency: 'BRL',
+        content_ids: ['music-personalizada'],
+        content_type: 'product',
+      });
+    }
+  }, [data, isLoadingRascunho]);
 
   if (isLoadingRascunho) {
     return (

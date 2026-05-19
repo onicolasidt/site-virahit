@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AUDIO_EXEMPLOS_QUIZ } from '../lib/audioExemplos';
+import { trackMetaEvent } from '../lib/metaTracking';
 
 type Vinculo = 'Mãe' | 'Pai' | 'Parceiro/a' | 'Filho/a' | 'Amigo/a' | 'Irmão/a' | 'Avó/Avô' | 'Outro';
 
@@ -895,6 +896,7 @@ export function Quiz({ onFinishQuiz, initialStep = 1 }: QuizProps) {
                   </button>
                   <button
                     onClick={() => {
+                      trackMetaEvent('Lead', { lead_type: 'quiz_completed' });
                       sessionStorage.setItem('virahit_rascunho_id', rascunhoId || '');
                       localStorage.removeItem('virahit_quiz_step');
                       localStorage.removeItem('virahit_quiz_draft');
@@ -911,6 +913,7 @@ export function Quiz({ onFinishQuiz, initialStep = 1 }: QuizProps) {
               <div className="flex flex-col">
                 <button
                   onClick={() => {
+                    trackMetaEvent('Lead', { lead_type: 'quiz_completed' });
                     sessionStorage.setItem('virahit_rascunho_id', rascunhoId || '');
                     localStorage.removeItem('virahit_quiz_step');
                     localStorage.removeItem('virahit_quiz_draft');
