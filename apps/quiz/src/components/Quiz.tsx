@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AUDIO_EXEMPLOS_QUIZ } from '../lib/audioExemplos';
 import { trackMetaEvent } from '../lib/metaTracking';
-import { trackGA4PageView, trackGA4QuizComplete, trackGA4LeadCaptured } from '../lib/ga4Tracking';
+import { trackGA4PageView, trackGA4QuizComplete, trackGA4LeadCaptured, trackGA4QuizStep } from '../lib/ga4Tracking';
 
 type Vinculo = 'Mãe' | 'Pai' | 'Parceiro/a' | 'Filho/a' | 'Amigo/a' | 'Irmão/a' | 'Avó/Avô' | 'Outro';
 
@@ -391,7 +391,7 @@ export function Quiz({ onFinishQuiz, initialStep = 1 }: QuizProps) {
       <header className="sticky top-0 z-50 bg-[var(--cream)]/90 backdrop-blur-md px-6 py-4 flex items-center justify-between border-b border-[var(--teal)]/10">
         <div className="flex items-center gap-4">
           {step > 1 && (
-            <button onClick={() => setStep(step - 1)} className="w-10 h-10 flex items-center justify-center rounded-full bg-[var(--teal)]/5 text-[var(--teal)] transition-transform active:scale-95">
+            <button onClick={() => { trackGA4PageView(`/quiz/step-${step - 1}`); setStep(step - 1); }} className="w-10 h-10 flex items-center justify-center rounded-full bg-[var(--teal)]/5 text-[var(--teal)] transition-transform active:scale-95">
               <span className="material-symbols-outlined">arrow_back</span>
             </button>
           )}
@@ -506,6 +506,8 @@ export function Quiz({ onFinishQuiz, initialStep = 1 }: QuizProps) {
               ref={continuar1Ref}
               disabled={!data.vinculo || (data.vinculo === 'Outro' && !data.vinculoOutro?.trim()) || !isNameValid || data.genero === null}
               onClick={() => {
+                trackGA4QuizStep(1, 'vinculo_nome', { vinculo: data.vinculo || '' });
+                trackGA4PageView('/quiz/step-2');
                 setStep(2);
               }}
               className="group w-full py-5 bg-[var(--gold)] text-white heading-font text-xl rounded-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 shadow-xl transition-transform active:scale-95"
@@ -592,6 +594,8 @@ export function Quiz({ onFinishQuiz, initialStep = 1 }: QuizProps) {
               ref={continuar2Ref}
               disabled={!data.estilo || !data.voz}
               onClick={() => {
+                trackGA4QuizStep(2, 'estilo_voz', { estilo_musical: data.estilo || '', voz: data.voz || '' });
+                trackGA4PageView('/quiz/step-3');
                 setStep(3);
               }}
               className="group w-full py-5 bg-[var(--gold)] text-white heading-font text-xl rounded-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 shadow-xl transition-transform active:scale-95"
@@ -897,6 +901,7 @@ export function Quiz({ onFinishQuiz, initialStep = 1 }: QuizProps) {
                   </button>
                   <button
                     onClick={() => {
+                      trackGA4QuizStep(3, 'historia', { estilo_musical: data.estilo || '', voz: data.voz || '', vinculo: data.vinculo || '' });
                       trackMetaEvent('Lead', { lead_type: 'quiz_completed' });
                       trackGA4QuizComplete({ estilo_musical: data.estilo || '', voz: data.voz || '', vinculo: data.vinculo || '' });
                       trackGA4LeadCaptured(97);
@@ -917,6 +922,7 @@ export function Quiz({ onFinishQuiz, initialStep = 1 }: QuizProps) {
               <div className="flex flex-col">
                 <button
                   onClick={() => {
+                    trackGA4QuizStep(3, 'historia', { estilo_musical: data.estilo || '', voz: data.voz || '', vinculo: data.vinculo || '' });
                     trackMetaEvent('Lead', { lead_type: 'quiz_completed' });
                     trackGA4QuizComplete({ estilo_musical: data.estilo || '', voz: data.voz || '', vinculo: data.vinculo || '' });
                     trackGA4LeadCaptured(97);

@@ -44,8 +44,8 @@ export default function App() {
     } else {
       // Garantir que o estado inicial está no history
       window.history.replaceState({ screen: 'quiz' }, '', window.location.href);
-      // GA4: page_view inicial do quiz
-      trackGA4PageView('/quiz');
+      // GA4: page_view inicial do quiz (step 1)
+      trackGA4PageView('/quiz/step-1');
     }
   }, []);
 
@@ -67,7 +67,7 @@ export default function App() {
     setCurrentScreen(screen);
     // GA4 SPA page tracking — fires page_view on every screen change
     const screenPaths: Record<Screen, string> = {
-      quiz: '/quiz',
+      quiz: '/quiz/step-1',
       conversion: '/quiz/conversao',
       checkout: '/quiz/checkout',
     };
