@@ -253,6 +253,14 @@ app.get("/api/rascunho/:id", async (req: any, res: any) => {
 // ==========================================
 app.get("/api/pedido/:codigoCurto", async (req: any, res: any) => {
   const requestId = req._requestId ?? generateRequestId();
+
+  // Rate limit: 60 req/min por IP (polling a cada 10s = 6 req/min por cliente)
+  const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
+  if (!checkRateLimit(clientIp, 60, 60000)) {
+    log('WARN', 'RATE_LIMIT', `GET /api/pedido rate limit exceeded for IP ${clientIp}`, { requestId });
+    return res.status(429).json({ error: "Muitas requisições. Aguarde um momento." });
+  }
+
   try {
     const { codigoCurto } = req.params;
     if (!codigoCurto) return res.status(400).json({ error: "Código do pedido obrigatório" });

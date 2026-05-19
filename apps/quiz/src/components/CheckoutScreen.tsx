@@ -418,7 +418,7 @@ function CardForm({ onSwitchToPix, onPaymentConfirmed, pedidoId }: CardFormProps
   );
 }
 
-import { salvarPedido, buscarPedido, buscarPedidoPorCodigoCurto, db } from '../lib/firebase';
+import { salvarPedido, db } from '../lib/firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
 
 function getWhatsAppUrl(session: SessionData) {
@@ -560,62 +560,66 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
       // Se estiver pago ou for muito antigo, limpar e tratar como sessao nova
       if (storedIdPedido && storedIdPedido !== 'demo-pedido') {
         try {
-          const pedidoSalvo = await buscarPedido(storedIdPedido);
-          if (pedidoSalvo && (pedidoSalvo as any).status === 'pago') {
-            // Pedido ja foi pago em outra sessao — limpar tudo e comecar do zero
-            ['idPedido','pixQRCodeUrl','pixCopiaCola','dataEntregaGarantida',
-             'compradorNome','compradorWhatsApp','generoDestinatario','estiloMusical','vozMusical',
-             'virahit_quiz_draft','virahit_audio_blobs'
-            ].forEach(k => localStorage.removeItem(k));
-            // Redirecionar de volta ao quiz
-            window.location.href = window.location.pathname;
-            return;
-          }
-          // Se o pedido existe no Firestore e NÃO está pago, usar os dados DELE
-          // (ConversionsScreen salvou tudo no addDoc — nome, estilo, voz, gênero, etc.)
-          // Isso evita o bug do "nome antigo" quando virahit_quiz_draft foi deletado
-          if (pedidoSalvo) {
-            const p = pedidoSalvo as any;
-            setSession({
-              nome: p.nome || '',
-              generoDestinatario: p.genero === 'F' ? 'F' : 'M',
-              estiloMusical: p.estilo || '',
-              vozMusical: p.voz || '',
-              compradorNome: p.compradorNome || '',
-              compradorWhatsApp: p.compradorWhatsApp || '',
-              compradorEmail: p.compradorEmail || '',
-              idPedido: storedIdPedido,
-              pixQRCodeUrl: p.pixQRCodeUrl || '',
-              pixCopiaCola: p.pixCopiaCola || '',
-              dataEntregaGarantida: p.dataEntregaGarantida || '',
-              ...(p.campoA !== undefined && { campoA: p.campoA }),
-              ...(p.campoB !== undefined && { campoB: p.campoB }),
-              ...(p.campoC !== undefined && { campoC: p.campoC }),
-              ...(p.campoCOutro !== undefined && { campoCOutro: p.campoCOutro }),
-              ...(p.vinculo !== undefined && { vinculo: p.vinculo }),
-              ...(p.genero !== undefined && { genero: p.genero }),
-            });
-
-            // Calcular tempo restante real do PIX com base em pixCriadoEm
-            if (p.pixCopiaCola && p.pixCriadoEm) {
-              const criadoEm = new Date(p.pixCriadoEm).getTime();
-              const expiresAt = criadoEm + 30 * 60 * 1000; // 30 minutos
-              const segundosRestantes = Math.floor((expiresAt - Date.now()) / 1000);
-              if (segundosRestantes <= 0) {
-                // PIX já expirou — mostrar estado expirado
-                setPixState('expired');
-                setTimeLeft(0);
-              } else {
-                // PIX ainda válido — cronômetro de onde parou
-                setPixState('active');
-                setTimeLeft(segundosRestantes);
-              }
+          // Busca via API server-side (<1s) em vez de Client SDK direto (20s)
+          const resp = await fetch(`/api/pedido/${encodeURIComponent(storedIdPedido)}`);
+          if (resp.ok) {
+            const result = await resp.json();
+            const p = result.pedido;
+            if (p?.status === 'pago') {
+              // Pedido ja foi pago em outra sessao — limpar tudo e comecar do zero
+              ['idPedido','pixQRCodeUrl','pixCopiaCola','dataEntregaGarantida',
+               'compradorNome','compradorWhatsApp','generoDestinatario','estiloMusical','vozMusical',
+               'virahit_quiz_draft','virahit_audio_blobs'
+              ].forEach(k => localStorage.removeItem(k));
+              // Redirecionar de volta ao quiz
+              window.location.href = window.location.pathname;
+              return;
             }
+            // Se o pedido existe e NAO está pago, usar os dados DELE
+            // (ConversionScreen salvou tudo no addDoc — nome, estilo, voz, gênero, etc.)
+            // Isso evita o bug do "nome antigo" quando virahit_quiz_draft foi deletado
+            if (p) {
+              setSession({
+                nome: p.nome || '',
+                generoDestinatario: p.genero === 'F' ? 'F' : 'M',
+                estiloMusical: p.estilo || '',
+                vozMusical: p.voz || '',
+                compradorNome: p.compradorNome || '',
+                compradorWhatsApp: p.compradorWhatsApp || '',
+                compradorEmail: p.compradorEmail || '',
+                idPedido: storedIdPedido,
+                pixQRCodeUrl: p.pixQRCodeUrl || '',
+                pixCopiaCola: p.pixCopiaCola || '',
+                dataEntregaGarantida: p.dataEntregaGarantida || '',
+                ...(p.campoA !== undefined && { campoA: p.campoA }),
+                ...(p.campoB !== undefined && { campoB: p.campoB }),
+                ...(p.campoC !== undefined && { campoC: p.campoC }),
+                ...(p.campoCOutro !== undefined && { campoCOutro: p.campoCOutro }),
+                ...(p.vinculo !== undefined && { vinculo: p.vinculo }),
+                ...(p.genero !== undefined && { genero: p.genero }),
+              });
 
-            // PIX já existe — não precisa gerar, para o loading
-            if (p.pixCopiaCola) setPixGenerating(false);
-            setDataLoaded(true);
-            return;
+              // Calcular tempo restante real do PIX com base em pixCriadoEm
+              if (p.pixCopiaCola && p.pixCriadoEm) {
+                const criadoEm = new Date(p.pixCriadoEm).getTime();
+                const expiresAt = criadoEm + 30 * 60 * 1000; // 30 minutos
+                const segundosRestantes = Math.floor((expiresAt - Date.now()) / 1000);
+                if (segundosRestantes <= 0) {
+                  // PIX já expirou — mostrar estado expirado
+                  setPixState('expired');
+                  setTimeLeft(0);
+                } else {
+                  // PIX ainda válido — cronômetro de onde parou
+                  setPixState('active');
+                  setTimeLeft(segundosRestantes);
+                }
+              }
+
+              // PIX já existe — não precisa gerar, para o loading
+              if (p.pixCopiaCola) setPixGenerating(false);
+              setDataLoaded(true);
+              return;
+            }
           }
         } catch { /* se falhar a busca, continua normalmente */ }
       }
@@ -789,10 +793,9 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
             const result = await resp.json();
             if (result.pedido?.status === 'pago') {
               confirmarPagamento();
-            } else if (result.pedido?.status === 'expirado') {
-              if (timerRef.current) clearInterval(timerRef.current);
-              setPixState('expired');
             }
+            // Nota: o servidor não retorna status 'expirado' — a expiração do PIX
+            // é detectada pelo timer do front (30min). Não consultar o servidor para isso.
           }
         } catch { /* falha silenciosa — onSnapshot continua como primario */ }
       }, 10000); // 10s (servidor é rápido, não precisa esperar 15s)
