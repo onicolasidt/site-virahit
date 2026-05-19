@@ -6,6 +6,7 @@ import HeroVideo from '../components/HeroVideo';
 import WhatsAppTestimonial from '../components/WhatsAppTestimonial';
 import AudioPlayerCard from '../components/AudioPlayerCard';
 import { ArrowRight, BadgeCheck, Heart, Lock, ChevronDown, Zap } from 'lucide-react';
+import { trackGA4CTAClick } from '../lib/ga4Tracking';
 
 import depoimento1Audio from '../assets/depoimento1.mp3';
 import depoimento2Audio from '../assets/depoimento2.mp3';
@@ -100,6 +101,7 @@ export default function Home() {
             <div className="flex flex-col items-center gap-4 w-full">
               <a
                 href="/quiz"
+                onClick={() => trackGA4CTAClick('Criar Minha Música por R$47', 'hero')}
                 className="group w-full max-w-[480px] bg-[var(--gold)] text-white heading-font text-base sm:text-lg py-5 px-4 sm:px-8 rounded-full shadow-xl hover:scale-105 hover:shadow-2xl hover:gold-glow active:scale-95 transition-all duration-200 flex items-center justify-center gap-3"
               >
                 <span className="whitespace-nowrap">Criar Minha Música por R$47</span>
@@ -172,6 +174,7 @@ export default function Home() {
             <div className="flex justify-center mt-16">
               <a
                 href="/quiz"
+                onClick={() => trackGA4CTAClick('Quero a Minha Música', 'social_proof')}
                 className="group bg-[var(--gold)] text-white heading-font text-sm py-3 px-8 rounded-lg shadow-[0_6px_16px_rgba(234,161,21,0.25)] hover:scale-105 active:scale-95 transition-all duration-200 flex items-center gap-2"
               >
                 <span>Quero a Minha Música</span>
@@ -228,6 +231,7 @@ export default function Home() {
             <div className="flex justify-center mt-10">
               <a
                 href="/quiz"
+                onClick={() => trackGA4CTAClick('Quero a Minha Música', 'depoimentos')}
                 className="group bg-[var(--gold)] text-white heading-font text-sm py-3 px-8 rounded-lg shadow-[0_6px_16px_rgba(234,161,21,0.25)] hover:scale-105 active:scale-95 transition-all duration-200 flex items-center gap-2"
               >
                 <span>Quero a Minha Música</span>
@@ -285,6 +289,7 @@ export default function Home() {
             <div className="flex justify-center mt-12">
               <a
                 href="/quiz"
+                onClick={() => trackGA4CTAClick('Quero a Minha Música', 'estilos')}
                 className="group bg-[var(--gold)] text-white heading-font text-sm py-3 px-8 rounded-lg shadow-[0_6px_16px_rgba(234,161,21,0.25)] hover:scale-105 active:scale-95 transition-all duration-200 flex items-center gap-2"
               >
                 <span>Quero a Minha Música</span>
@@ -480,6 +485,7 @@ export default function Home() {
               {/* Melhoria #4: CTA do bloco de oferta — menor que hero, maior que os intermediários */}
               <a
                 href="/quiz"
+                onClick={() => trackGA4CTAClick('Quero a Minha Música', 'oferta')}
                 className="group bg-[var(--gold)] text-white heading-font text-base py-4 px-10 rounded-lg shadow-[0_8px_20px_rgba(234,161,21,0.3)] hover:scale-105 active:scale-95 transition-all duration-200 flex items-center gap-3"
               >
                 <span>Criar Minha Música por R$47</span>
@@ -534,6 +540,7 @@ export default function Home() {
             {/* CTA final = mesmo nível do hero: rounded-lg grande + shadow forte */}
             <a
               href="/quiz"
+              onClick={() => trackGA4CTAClick('Criar Minha Música', 'footer')}
               className="group inline-flex items-center gap-3 bg-[var(--gold)] text-white heading-font text-lg py-5 px-12 rounded-lg shadow-[0_8px_20px_rgba(234,161,21,0.3)] hover:scale-105 active:scale-95 transition-all duration-200"
             >
               <span>Criar Minha Música por R$47</span>

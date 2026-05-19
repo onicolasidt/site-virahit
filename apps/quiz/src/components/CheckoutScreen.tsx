@@ -19,7 +19,7 @@ import {
 import { Lock, ShieldCheck, Copy, Check, Clock, Truck, CheckCircle, CreditCard, QrCode, Loader2, Share2 } from 'lucide-react';
 import { resolverGenero } from './Quiz';
 import { trackMetaEvent } from '../lib/metaTracking';
-import { trackGA4CheckoutViewed, trackGA4Purchase } from '../lib/ga4Tracking';
+import { trackGA4CheckoutViewed, trackGA4Purchase, trackGA4PixGenerated, trackGA4PixExpired } from '../lib/ga4Tracking';
 
 // Initialize Stripe with VITE_STRIPE_PUBLISHABLE_KEY.
 // Handle gracefully if not set (it will return null to elements).
@@ -760,6 +760,7 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
         if (prev <= 1) {
           clearInterval(timerRef.current!);
           setPixState('expired');
+          trackGA4PixExpired(0);
           setSession((s) => ({ ...s, pixCopiaCola: '' }));
           return 0;
         }
@@ -896,6 +897,7 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
       document.execCommand('copy'); document.body.removeChild(el);
     }
     setCopied(true);
+    trackGA4PixGenerated('copy');
     // Para efeito de demonstração na interface se a api nao estiver ali
     if (!session.pixCopiaCola) {
         setTimeout(() => {
