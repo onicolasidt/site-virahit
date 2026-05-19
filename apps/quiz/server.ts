@@ -430,7 +430,7 @@ app.post("/api/pix", async (req: any, res: any) => {
         headers: { "Content-Type": "application/json", "Authorization": WOOVI_APP_ID },
         body: JSON.stringify({
           correlationID: corrID,
-          value: 100,
+          value: 4700,
           expiresIn: 1800, // 30 minutos
           comment: `ViraHit - Música ${clienteNome}`,
           customer: {
@@ -834,7 +834,7 @@ app.post("/api/criar-pedido-com-pix", async (req: any, res: any) => {
           },
           body: JSON.stringify({
             correlationID: pedidoId,
-            value: 100,
+            value: 4700,
             expiresIn: 1800,
             comment: `ViraHit - Música ${pedidoData.nome}`,
             customer: {
@@ -1026,7 +1026,7 @@ app.post("/api/pagamento/criar-intencao", async (req: any, res: any) => {
     log('INFO', 'STRIPE', `Criando PaymentIntent para pedido ${pedidoId}`, { requestId, meta: { pedidoId } });
 
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: 100,
+      amount: 4700,
       currency: "brl",
       metadata: { pedidoId },
       automatic_payment_methods: {

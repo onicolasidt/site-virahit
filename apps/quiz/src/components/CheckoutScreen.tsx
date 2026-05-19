@@ -406,7 +406,7 @@ function CardForm({ onSwitchToPix, onPaymentConfirmed, pedidoId }: CardFormProps
           <div className="absolute inset-0 -translate-x-full group-hover:animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-[-20deg]"></div>
         )}
         <div className="relative z-10 flex items-center justify-center gap-2 text-[15px] tracking-widest leading-none">
-          {cardLoading ? <><Loader2 className="w-5 h-5 animate-spin" />PROCESSANDO...</> : <>CRIAR POR R$ 1,00<span className="material-symbols-outlined text-[22px] animate-slide-right inline-block">arrow_forward</span></>}
+          {cardLoading ? <><Loader2 className="w-5 h-5 animate-spin" />PROCESSANDO...</> : <>CRIAR POR R$ 47,00<span className="material-symbols-outlined text-[22px] animate-slide-right inline-block">arrow_forward</span></>}
         </div>
       </button>
 
@@ -1093,7 +1093,7 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
           </div>
           <div className="text-right pl-3 border-l border-[#2C5D63]/10 shrink-0">
             <p className="text-[#2C5D63]/50 text-[10px] font-bold uppercase tracking-widest leading-none mb-1 text-right">Total</p>
-            <p className="font-extrabold text-[#128C7E] text-[18px] tracking-tight leading-none" style={{ fontFamily: 'Open Sans, sans-serif' }}>R$ 1,00</p>
+            <p className="font-extrabold text-[#128C7E] text-[18px] tracking-tight leading-none" style={{ fontFamily: 'Open Sans, sans-serif' }}>R$ 47,00</p>
           </div>
         </section>
 

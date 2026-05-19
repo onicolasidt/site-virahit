@@ -119,7 +119,7 @@ export function trackGA4QuizComplete(params: { estilo_musical: string; voz: stri
  * Track lead capture (email + WhatsApp submitted).
  * Uses GA4 recommended event 'generate_lead' with value for ad optimization.
  */
-export function trackGA4LeadCaptured(value: number = 97): void {
+export function trackGA4LeadCaptured(value: number = 47): void {
   fireGA4Event('generate_lead', {
     value: value,
     currency: 'BRL',
@@ -130,7 +130,7 @@ export function trackGA4LeadCaptured(value: number = 97): void {
  * Track checkout viewed (checkout screen rendered).
  * Uses GA4 recommended event 'begin_checkout'.
  */
-export function trackGA4CheckoutViewed(value: number = 97): void {
+export function trackGA4CheckoutViewed(value: number = 47): void {
   fireGA4Event('begin_checkout', {
     value: value,
     currency: 'BRL',
