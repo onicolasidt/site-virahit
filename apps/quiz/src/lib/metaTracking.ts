@@ -26,6 +26,36 @@ interface UserData {
 }
 
 /**
+ * Fire browser pixel with retry if fbq not ready yet
+ * Tries immediately, then once more after 500ms if not available
+ */
+function fireBrowserPixel(eventName: string, data: TrackingData, eventId: string): void {
+  if (typeof window === 'undefined') return;
+
+  const tryFire = () => {
+    if (window.fbq) {
+      try {
+        window.fbq('track', eventName, data, { eventID: eventId });
+      } catch (fbqErr) {
+        console.warn('[Meta Pixel] Falha ao enviar evento via fbq:', fbqErr);
+      }
+      return true;
+    }
+    return false;
+  };
+
+  // Try immediately
+  if (tryFire()) return;
+
+  // If not ready, retry once after 500ms then give up
+  setTimeout(() => {
+    if (!tryFire()) {
+      console.warn('[Meta Pixel] fbq não disponível após retry — evento será enviado apenas via servidor');
+    }
+  }, 500);
+}
+
+/**
  * Track Meta event with dual firing: browser Pixel + server CAPI
  */
 export async function trackMetaEvent(eventName: string, data?: TrackingData): Promise<void> {
@@ -34,14 +64,8 @@ export async function trackMetaEvent(eventName: string, data?: TrackingData): Pr
     const event_id = `${eventName.toLowerCase()}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const event_time = Math.floor(Date.now() / 1000);
 
-    // 1. Fire browser pixel (if available)
-    if (typeof window !== 'undefined' && window.fbq) {
-      try {
-        window.fbq('track', eventName, data || {}, { eventID: event_id });
-      } catch (fbqErr) {
-        console.warn('[Meta Pixel] Falha ao enviar evento via fbq:', fbqErr);
-      }
-    }
+    // 1. Fire browser pixel (with retry if not ready yet)
+    fireBrowserPixel(eventName, data || {}, event_id);
 
     // 2. Collect user data from localStorage
     const userData = extractUserData();
