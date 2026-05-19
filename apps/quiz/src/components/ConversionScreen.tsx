@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, RefObject } from 'react';
 import { resolverGenero } from './Quiz';
 import { AUDIO_EXEMPLOS_CONVERSAO } from '../lib/audioExemplos';
 import { trackMetaEvent } from '../lib/metaTracking';
+import { trackGA4LeadCaptured, trackGA4CheckoutViewed } from '../lib/ga4Tracking';
 
 interface ConversionScreenProps {
   onBackToQuiz: () => void;
@@ -126,6 +127,7 @@ export function ConversionScreen({ onBackToQuiz, onGoToCheckout }: ConversionScr
         content_ids: ['music-personalizada'],
         content_type: 'product',
       });
+      trackGA4LeadCaptured(47);
     }
   }, [data, isLoadingRascunho]);
 

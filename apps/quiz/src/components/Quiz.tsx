@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AUDIO_EXEMPLOS_QUIZ } from '../lib/audioExemplos';
 import { trackMetaEvent } from '../lib/metaTracking';
+import { trackGA4PageView, trackGA4QuizComplete, trackGA4LeadCaptured } from '../lib/ga4Tracking';
 
 type Vinculo = 'Mãe' | 'Pai' | 'Parceiro/a' | 'Filho/a' | 'Amigo/a' | 'Irmão/a' | 'Avó/Avô' | 'Outro';
 
@@ -897,6 +898,9 @@ export function Quiz({ onFinishQuiz, initialStep = 1 }: QuizProps) {
                   <button
                     onClick={() => {
                       trackMetaEvent('Lead', { lead_type: 'quiz_completed' });
+                      trackGA4QuizComplete({ estilo_musical: data.estilo || '', voz: data.voz || '', vinculo: data.vinculo || '' });
+                      trackGA4LeadCaptured(97);
+                      trackGA4PageView('/quiz/conversao');
                       sessionStorage.setItem('virahit_rascunho_id', rascunhoId || '');
                       localStorage.removeItem('virahit_quiz_step');
                       localStorage.removeItem('virahit_quiz_draft');
@@ -914,6 +918,9 @@ export function Quiz({ onFinishQuiz, initialStep = 1 }: QuizProps) {
                 <button
                   onClick={() => {
                     trackMetaEvent('Lead', { lead_type: 'quiz_completed' });
+                    trackGA4QuizComplete({ estilo_musical: data.estilo || '', voz: data.voz || '', vinculo: data.vinculo || '' });
+                    trackGA4LeadCaptured(97);
+                    trackGA4PageView('/quiz/conversao');
                     sessionStorage.setItem('virahit_rascunho_id', rascunhoId || '');
                     localStorage.removeItem('virahit_quiz_step');
                     localStorage.removeItem('virahit_quiz_draft');

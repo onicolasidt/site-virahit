@@ -1,5 +1,6 @@
 import React, { useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { trackGA4PageView } from './lib/ga4Tracking';
 
 // Loader
 const Loader = () => (
@@ -22,6 +23,8 @@ const Privacidade = lazy(() => import('./pages/Privacidade'));
 function ScrollToTop() {
   const { pathname, hash } = useLocation();
   useEffect(() => {
+    // GA4 SPA page tracking — fires on every route change
+    trackGA4PageView(pathname || '/');
     if (hash) {
       setTimeout(() => {
         const el = document.querySelector(hash);

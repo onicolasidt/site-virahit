@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react';
 import { Quiz } from './components/Quiz';
 import { ConversionScreen } from './components/ConversionScreen';
 import { CheckoutScreen } from './components/CheckoutScreen';
+import { trackGA4PageView } from './lib/ga4Tracking';
 
 type Screen = 'quiz' | 'conversion' | 'checkout';
 
@@ -43,6 +44,8 @@ export default function App() {
     } else {
       // Garantir que o estado inicial está no history
       window.history.replaceState({ screen: 'quiz' }, '', window.location.href);
+      // GA4: page_view inicial do quiz
+      trackGA4PageView('/quiz');
     }
   }, []);
 
@@ -62,6 +65,13 @@ export default function App() {
     const method = replace ? 'replaceState' : 'pushState';
     window.history[method]({ screen }, '', window.location.href);
     setCurrentScreen(screen);
+    // GA4 SPA page tracking — fires page_view on every screen change
+    const screenPaths: Record<Screen, string> = {
+      quiz: '/quiz',
+      conversion: '/quiz/conversao',
+      checkout: '/quiz/checkout',
+    };
+    trackGA4PageView(screenPaths[screen] || `/quiz/${screen}`);
   };
 
   return (

@@ -30,14 +30,15 @@
     </script>
     <!-- End Meta Pixel Code -->
 
-    <!-- Microsoft Clarity -->
-    <script type="text/javascript">
-      (function(c,l,a,r,i,t,y){
-        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-      })(window, document, "clarity", "script", "wr7dbodr9z");
+    <!-- Google Analytics GA4 — send_page_view desabilitado para SPA tracking manual -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-1450VVBCMP"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-1450VVBCMP', { send_page_view: false });
     </script>
+    <!-- End Google Analytics GA4 -->
   </head>
   <body>
     <!-- Meta Pixel noscript -->

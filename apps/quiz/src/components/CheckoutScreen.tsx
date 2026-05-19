@@ -19,6 +19,7 @@ import {
 import { Lock, ShieldCheck, Copy, Check, Clock, Truck, CheckCircle, CreditCard, QrCode, Loader2, Share2 } from 'lucide-react';
 import { resolverGenero } from './Quiz';
 import { trackMetaEvent } from '../lib/metaTracking';
+import { trackGA4CheckoutViewed, trackGA4Purchase } from '../lib/ga4Tracking';
 
 // Initialize Stripe with VITE_STRIPE_PUBLISHABLE_KEY.
 // Handle gracefully if not set (it will return null to elements).
@@ -676,6 +677,7 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
         content_ids: ['music-personalizada'],
         content_type: 'product',
       });
+      trackGA4CheckoutViewed(47);
     }
   }, [dataLoaded, pageState, session.idPedido]);
 
@@ -781,6 +783,7 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
           content_type: 'product',
           num_items: 1,
         });
+        trackGA4Purchase(47, session.idPedido || '');
       }
       if (timerRef.current) clearInterval(timerRef.current);
       localStorage.removeItem('idPedido');
@@ -905,6 +908,7 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
                 content_type: 'product',
                 num_items: 1,
               });
+              trackGA4Purchase(47, session.idPedido || '');
             }
             if (timerRef.current) clearInterval(timerRef.current);
             setPageState('confirmed');
@@ -1321,6 +1325,7 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
                             content_type: 'product',
                             num_items: 1,
                           });
+                          trackGA4Purchase(47, session.idPedido || '');
                         }
                         if (timerRef.current) clearInterval(timerRef.current);
                         ['idPedido','pixQRCodeUrl','pixCopiaCola','dataEntregaGarantida',
@@ -1347,6 +1352,7 @@ export function CheckoutScreen({ onCompleted }: { onCompleted: () => void }) {
                             content_type: 'product',
                             num_items: 1,
                           });
+                          trackGA4Purchase(47, session.idPedido || '');
                         }
                         if (timerRef.current) clearInterval(timerRef.current);
                         setPageState('confirmed');
